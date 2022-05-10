@@ -275,6 +275,7 @@ function nameForStixObject(stixObject, stixIdToName, nameCounts, config=null)
         // type-specific label; if that fails, use some hard-coded fallbacks,
         // which eventually just default to using the STIX type.
         if (config)
+        {
             userLabels = config.get("userLabels");
             if (userLabels)
                 baseName = userLabels.get(stixId);
@@ -289,6 +290,7 @@ function nameForStixObject(stixObject, stixIdToName, nameCounts, config=null)
                         baseName = stixObject.get(labelPropName);
                 }
             }
+        }
 
         // Copied from old visualizer, fall back to some hard-coded properties
         if (!baseName)
