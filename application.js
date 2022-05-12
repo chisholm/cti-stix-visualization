@@ -401,7 +401,7 @@ is not serving JSON, or is not running a webserver.\n\nA GitHub Gist can be crea
     }
 
     function selectedNodeClick() {
-      selected = document.getElementById('selected');
+      let selected = document.getElementById('selected');
       if (selected.className.indexOf('clicked') === -1) {
         selected.className += " clicked";
         selected.style.position = 'absolute';
