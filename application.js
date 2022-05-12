@@ -57,7 +57,11 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     {
         // Ignore events not associated with a node (e.g. clicking the canvas)
         if (event.nodes.length > 0)
-            populateSelected(graph.getObject(event.nodes[0]));
+        {
+            stixObject = graph.getObject(event.nodes[0]);
+            if (stixObject)
+                populateSelected(stixObject);
+        }
     }
 
 
