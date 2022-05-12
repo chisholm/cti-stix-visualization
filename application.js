@@ -1,3 +1,4 @@
+"use strict";
 /*
 Stix2viz and echarts are packaged in a way that makes them work as Jupyter
 notebook extensions.  Part of the extension installation process involves
@@ -124,7 +125,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
       for (var i = 0, f; f = files[i]; i++) {
         document.getElementById('chosen-files').innerText += f.name + " ";
-        customConfig = document.getElementById('paste-area-custom-config').value;
+        let customConfig = document.getElementById('paste-area-custom-config').value;
         var r = new FileReader();
         r.onload = function(e) {vizStixWrapper(e.target.result, customConfig);};
         r.readAsText(f);
@@ -137,8 +138,8 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * Handles content pasted to the text area.
      * ******************************************************/
     function handleTextarea() {
-      customConfig = document.getElementById('paste-area-custom-config').value;
-      content = document.getElementById('paste-area-stix-json').value;
+      let customConfig = document.getElementById('paste-area-custom-config').value;
+      let content = document.getElementById('paste-area-stix-json').value;
       vizStixWrapper(content, customConfig);
       linkifyHeader();
     }
@@ -150,7 +151,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * ******************************************************/
     function handleFetchJson() {
       var url = document.getElementById("url").value;
-      customConfig = document.getElementById('paste-area-custom-config').value;
+      let customConfig = document.getElementById('paste-area-custom-config').value;
       fetchJsonAjax(url, function(content) {
         vizStixWrapper(content, customConfig);
       });
