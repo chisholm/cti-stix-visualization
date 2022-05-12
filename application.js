@@ -92,6 +92,8 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         {
             graph = stix2viz.makeGraph(canvas, content, customConfig);
 
+            populateLegend(...graph.legendData);
+
             graph.on(
                 "click",
                 e => nodeClickHandler(e, graph)
@@ -160,6 +162,35 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         vizStixWrapper(content, customConfig);
       });
       linkifyHeader();
+    }
+
+    /* ******************************************************
+     * Adds icons and information to the legend.
+     *
+     * Takes an array of type names as input
+     * ******************************************************/
+    function populateLegend(iconURLMap, defaultIconURL) {
+      var ul = document.getElementById('legend-content');
+      for (let [stixType, iconURL] of iconURLMap)
+      {
+        var li = document.createElement('li');
+        var val = document.createElement('p');
+        var key = document.createElement('div');
+        var keyImg = document.createElement('img');
+        keyImg.onerror = function() {
+          // set the node's icon to the default if this image could not load
+          this.src = defaultIconURL;
+          // our default svg is enormous... shrink it down!
+          this.width = "37";
+          this.height = "37";
+        }
+        keyImg.src = iconURL;
+        key.appendChild(keyImg);
+        val.innerText = stixType.charAt(0).toUpperCase() + stixType.substr(1).toLowerCase(); // Capitalize it
+        li.appendChild(key);
+        li.appendChild(val);
+        ul.appendChild(li);
+      }
     }
 
     /**
@@ -298,6 +329,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         }
         document.getElementById('files').value = ""; // reset the files input
         document.getElementById('chosen-files').innerHTML = ""; // reset the subheader text
+        document.getElementById('legend-content').innerHTML = ""; // reset the legend in the sidebar
         document.getElementById('selection').innerHTML = ""; // reset the selected node in the sidebar
 
         header.classList.remove('linkish');

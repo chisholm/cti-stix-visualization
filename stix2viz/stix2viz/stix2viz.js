@@ -526,6 +526,7 @@ function doubleClickHandler(event, nodeDataSet)
 class STIX2Graph
 {
     #stixIdToObject;
+    #legendData;
     #nodeDataSet;
     #edgeDataSet;
     #network;
@@ -555,6 +556,8 @@ class STIX2Graph
             this.#stixIdToObject.set(object.get("id"), object);
 
         let groups = this.#makeGroups(config);
+        this.#legendData = this.#makeLegendData(groups);
+
         let [nodes, edges] = this.#makeNodesAndEdges(config);
 
         this.#nodeDataSet = new visjs.DataSet(nodes);
@@ -610,6 +613,18 @@ class STIX2Graph
     get edgeDataSet()
     {
         return this.#edgeDataSet;
+    }
+
+    /**
+     * Get data useful for external entities to create a legend for the graph.
+     * This is a 2-tuple: (1) a STIX type to icon URL mapping for all STIX
+     * types present in the graph, and (2) a URL used as a fallback when a URL
+     * in the mapping doesn't resolve.  (So not all of the URLs in the mapping
+     * are guaranteed to resolve, but the fallback should.)
+     */
+    get legendData()
+    {
+        return this.#legendData;
     }
 
     /**
@@ -693,6 +708,39 @@ class STIX2Graph
         }
 
         return groups;
+    }
+
+    /**
+     * Make a data structure which is more suitable for an external entity to
+     * create a legend.  This data is essentially what is in the visjs "group"
+     * structure, but that structure also has some visjs-specific junk that
+     * would be irrelevant.  So it doesn't make sense to use it directly.
+     *
+     * We ought to ensure that the data/options used to create the graph and
+     * the legend data we give to users is consistent.  A way to do that is
+     * to use the group data to create the legend data.  So that's what this
+     * method does.
+     *
+     * @param groups the visjs group data
+     * @return Legend data as a 2-tuple: a STIX type to URL mapping, and the
+     *      URL used as a fallback when there wasn't something more specific.
+     *      (Not all URLs in the mapping are guaranteed to resolve.)
+     */
+    #makeLegendData(groups)
+    {
+        let legendData = new Map();
+        let defaultIconURL = null;
+
+        for (let stixType in groups)
+        {
+            legendData.set(stixType, groups[stixType].image);
+            // all "brokenImage" default URLs ought to be the same, so just use
+            // the first one.
+            if (!defaultIconURL)
+                defaultIconURL = groups[stixType].brokenImage;
+        }
+
+        return [legendData, defaultIconURL];
     }
 
     /**
