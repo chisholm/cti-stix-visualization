@@ -181,29 +181,6 @@ function parseToMap(jsonContent)
 
 
 /**
- * Somewhat the reverse of parseToMap: convert all maps within the given value
- * to plain objects.
- *
- * @param value Any value
- * @return A value without Maps
- */
-function mapToObject(value)
-{
-    if (value instanceof Map)
-    {
-        let obj = {};
-        for (let [subKey, subValue] of value)
-            obj[subKey] = mapToObject(subValue);
-        value = obj;
-    }
-    else if (Array.isArray(value))
-        value = value.map(mapToObject);
-
-    return value;
-}
-
-
-/**
  * Perform a simple sanity check on a STIX object to determine whether it's
  * valid.
  *
