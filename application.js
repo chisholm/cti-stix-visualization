@@ -20,7 +20,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
 
     // Init some stuff
-    let chart = null;
+    let graph = null;
     let selectedContainer = document.getElementById('selection');
     let uploader = document.getElementById('uploader');
     let canvasContainer = document.getElementById('canvas-container');
@@ -46,9 +46,17 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             messages.push(exc.toString());
         }
 
-        let message = messages.join("\n\n    caused by:\n\n");
+        let message = messages.join("\n\n    Caused by:\n\n");
 
         alert(message);
+    }
+
+
+    function nodeClickHandler(event, graph)
+    {
+        // Ignore events not associated with a node (e.g. clicking the canvas)
+        if (event.nodes.length > 0)
+            populateSelected(graph.getObject(event.nodes[0]));
     }
 
 
@@ -78,15 +86,15 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         try
         {
             graph = stix2viz.makeGraph(canvas, content, customConfig);
-/*
+
             graph.on(
                 "click",
-                e => populateSelected(e.data._stixObject)
+                e => nodeClickHandler(e, graph)
             );
-*/
         }
         catch (err)
         {
+            console.log(err);
             alertException(err);
         }
     }
@@ -150,6 +158,24 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     }
 
     /**
+     * A JSON.stringify() replacer function to enable it to handle Map objects
+     * like plain javascript objects.
+     */
+    function mapReplacer(key, value)
+    {
+        if (value instanceof Map)
+        {
+            let plainObj = {};
+            for (let [subKey, subValue] of value)
+                plainObj[subKey] = subValue;
+
+            value = plainObj;
+        }
+
+        return value;
+    }
+
+    /**
      * Prettify the given property key and value for display in the object
      * info box.
      */
@@ -176,14 +202,16 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             else
             {
                 // Array of anything else
-                let stringValues = value.map(elt => JSON.stringify(elt));
+                let stringValues = value.map(
+                    v => JSON.stringify(v, mapReplacer)
+                );
                 prettyValue = stringValues.join(", ");
             }
         }
         else if (!(typeof value === "string" || value instanceof String))
             // A non-array, non-string value.  Just run through the
             // JSON stringifier.
-            prettyValue = JSON.stringify(value);
+            prettyValue = JSON.stringify(value, mapReplacer);
 
         // Old code dropped _ref/_refs suffixes, "_", and capitalized
         prettyKey = key.replace(/_refs?$/, "");
@@ -197,15 +225,16 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     /* ******************************************************
      * Adds information to the selected node table.
      *
-     * Takes datum as input
+     * Takes STIX object as input
      * ******************************************************/
-    function populateSelected(d) {
+    function populateSelected(stixObject) {
       // Remove old values from HTML
       selectedContainer.innerHTML = "";
 
       var counter = 0;
 
-      Object.keys(d).forEach(function(key) { // Make new HTML elements and display them
+      for (let [propName, propValue] of stixObject)
+      { // Make new HTML elements and display them
         // Create new, empty HTML elements to be filled and injected
         var div = document.createElement('div');
         var type = document.createElement('div');
@@ -219,7 +248,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         val.classList.add("value");
 
         // Add the text to the new inner html elements
-        let [prettyKey, prettyValue] = prettyKeyValue(key, d[key]);
+        let [prettyKey, prettyValue] = prettyKeyValue(propName, propValue);
         type.innerText = prettyKey;
         val.innerText = prettyValue;
 
@@ -230,7 +259,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
         // increment the class counter
         counter += 1;
-      });
+      }
     }
 
     /* ******************************************************
@@ -257,10 +286,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
       var header = document.getElementById('header');
       if (header.classList.contains('linkish')) {
         toggleView();
-        if (chart)
+        if (graph)
         {
-            chart.destroy();
-            chart = null;
+            graph.destroy();
+            graph = null;
         }
         document.getElementById('files').value = ""; // reset the files input
         document.getElementById('chosen-files').innerHTML = ""; // reset the subheader text
