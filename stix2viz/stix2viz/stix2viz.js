@@ -335,8 +335,7 @@ function makeEdgeObject(sourceRef, targetRef, label)
     let edge = {
         from: sourceRef,
         to: targetRef,
-        label: label,
-        arrows: "to"
+        label: label
     };
 
     return edge;
@@ -569,7 +568,33 @@ class STIX2Graph
         };
 
         let graphOpts = {
-            groups: groups
+            groups: groups,
+            nodes: {
+                color: {
+                    border: "black"
+                },
+                font: {
+                    size: 20
+                },
+                borderWidth: 3,
+                chosen: {
+                    node: (values, id, selected, hovering) => {
+                        if (selected)
+                        {
+                            values.shadow = true;
+                            values.shadowX = values.shadowY = 8;
+                        }
+                    }
+                }
+            },
+            edges: {
+                arrows: "to",
+                width: 3,
+                color: "gray",
+                font: {
+                    size: 20
+                }
+            }
         };
 
         this.#network = new visjs.Network(domElement, graphData, graphOpts);
