@@ -174,7 +174,14 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         let colIdx = 0;
         let table = document.getElementById('legend-content');
 
-        tbody = table.createTBody();
+        // Reset table content if necessary.
+        if (table.tBodies.length === 0)
+            tbody = table.createTBody();
+        else
+            tbody = table.tBodies[0];
+
+        tbody.replaceChildren();
+
         tr = tbody.insertRow();
 
         for (let [stixType, iconURL] of iconURLMap)
@@ -341,7 +348,6 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         }
         document.getElementById('files').value = ""; // reset the files input
         document.getElementById('chosen-files').innerHTML = ""; // reset the subheader text
-        document.getElementById('legend-content').innerHTML = ""; // reset the legend in the sidebar
         document.getElementById('selection').innerHTML = ""; // reset the selected node in the sidebar
 
         header.classList.remove('linkish');
