@@ -166,8 +166,6 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
     /* ******************************************************
      * Adds icons and information to the legend.
-     *
-     * Takes an array of type names as input
      * ******************************************************/
     function populateLegend(iconURLMap, defaultIconURL) {
         let tbody, tr, td;
