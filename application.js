@@ -170,27 +170,39 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * Takes an array of type names as input
      * ******************************************************/
     function populateLegend(iconURLMap, defaultIconURL) {
-      var ul = document.getElementById('legend-content');
-      for (let [stixType, iconURL] of iconURLMap)
-      {
-        var li = document.createElement('li');
-        var val = document.createElement('p');
-        var key = document.createElement('div');
-        var keyImg = document.createElement('img');
-        keyImg.onerror = function() {
-          // set the node's icon to the default if this image could not load
-          this.src = defaultIconURL;
-          // our default svg is enormous... shrink it down!
-          this.width = "37";
-          this.height = "37";
+        let tbody, tr, td;
+        let colIdx = 0;
+        let table = document.getElementById('legend-content');
+
+        tbody = table.createTBody();
+        tr = tbody.insertRow();
+
+        for (let [stixType, iconURL] of iconURLMap)
+        {
+            let img = document.createElement('img');
+
+            img.onerror = function() {
+                // set the node's icon to the default if this image could not
+                // load
+                this.src = defaultIconURL;
+                // our default svg is enormous... shrink it down!
+                this.width = "37";
+                this.height = "37";
+            }
+            img.src = iconURL;
+
+            if (colIdx > 1)
+            {
+                colIdx = 0;
+                tr = tbody.insertRow();
+            }
+
+            td = tr.insertCell();
+            ++colIdx;
+
+            td.append(img);
+            td.append(stixType.charAt(0).toUpperCase() + stixType.substr(1).toLowerCase());
         }
-        keyImg.src = iconURL;
-        key.appendChild(keyImg);
-        val.innerText = stixType.charAt(0).toUpperCase() + stixType.substr(1).toLowerCase(); // Capitalize it
-        li.appendChild(key);
-        li.appendChild(val);
-        ul.appendChild(li);
-      }
     }
 
     /**

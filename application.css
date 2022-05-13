@@ -59,8 +59,7 @@ h1 img {
 }
 
 .sidebar {
-  right: 25px;
-  width: 350px;
+  width: 30%;
   display: inline-block;
 }
 
@@ -73,6 +72,20 @@ h1 img {
   margin-top: 25px;
   padding: 25px;
   background-color: #fafafa;
+}
+
+#legend-content {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#legend-content img {
+    vertical-align: middle;
+    margin-right: 0.5em;
+}
+
+#legend-content td {
+    width: 50%;
 }
 
 #selected {
