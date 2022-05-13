@@ -576,13 +576,14 @@ class STIX2Graph
                 font: {
                     size: 20
                 },
-                borderWidth: 3,
+                borderWidth: 2,
                 chosen: {
                     node: (values, id, selected, hovering) => {
                         if (selected)
                         {
                             values.shadow = true;
                             values.shadowX = values.shadowY = 8;
+                            values.borderWidth = 4;
                         }
                     }
                 }
