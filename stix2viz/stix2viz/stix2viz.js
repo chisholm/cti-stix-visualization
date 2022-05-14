@@ -578,6 +578,7 @@ class STIX2Graph
                 },
                 borderWidth: 2,
                 chosen: {
+                    // Enable a drop shadow when a node is selected
                     node: (values, id, selected, hovering) => {
                         if (selected)
                         {
@@ -595,6 +596,16 @@ class STIX2Graph
                 font: {
                     size: 20
                 }
+            },
+            physics: {
+                solver: "barnesHut",
+                barnesHut: {
+                    springLength: 200,
+                    avoidOverlap: 1
+                },
+                // Set to false if you want to watch the graph stabilize when
+                // it first loads.
+                stabilization: true
             }
         };
 
