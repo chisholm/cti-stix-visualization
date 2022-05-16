@@ -385,10 +385,10 @@ function getDefaultIconURL(iconPath=null)
 
 /**
  * Config can be given as JSON or an object.  Normalize whatever we are given
- * to an object.
+ * to a Map.
  *
  * @param config configuration as given to the visualizer
- * @return A configuration object
+ * @return A configuration Map
  * @throw InvalidConfigError if the given config value is invalid
  */
 function normalizeConfig(config)
