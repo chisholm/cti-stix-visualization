@@ -1,6 +1,6 @@
 "use strict";
 /*
-Stix2viz and echarts are packaged in a way that makes them work as Jupyter
+Stix2viz and visjs are packaged in a way that makes them work as Jupyter
 notebook extensions.  Part of the extension installation process involves
 copying them to a different location, where they're available via a special
 "nbextensions" path.  This path is hard-coded into their "require" module

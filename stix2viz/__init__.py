@@ -62,11 +62,12 @@ def _jupyter_nbextension_paths():
     # I think "section" can be one of ['common', 'notebook', 'tree', 'edit',
     # 'terminal'].  I dunno what they mean.  The examples used "notebook".
     #
-    # So the following dumps both echarts and stix2viz into the "stix2viz"
+    # So the following dumps both visjs and stix2viz into the "stix2viz"
     # extension directory, where they will henceforth be importable (via AMD)
-    # as "nbextensions/stix2viz/echarts" and "nbextensions/stix2viz/stix2viz".
-    # (You can't put them in the same src directory, because you don't seem to
-    # be allowed to have more than one AMD module per extension.)
+    # as "nbextensions/stix2viz/vis-network" and
+    # "nbextensions/stix2viz/stix2viz".  (You can't put them in the same src
+    # directory, because you don't seem to be allowed to have more than one AMD
+    # module per extension.)
     return [
         {
             "section": "notebook",
