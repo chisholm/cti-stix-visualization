@@ -88,6 +88,11 @@ h1 img {
     width: 50%;
 }
 
+#legend-content .typeHidden {
+    font-style: italic;
+    color: gray;
+}
+
 #selected {
   margin-top: 25px;
   padding: 25px;
