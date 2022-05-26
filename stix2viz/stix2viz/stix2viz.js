@@ -197,6 +197,38 @@ function isValidStixObject(stixObject)
 
 
 /**
+ * Sometimes we want to restrict attention to STIX types which are usable as
+ * nodes in our graph.  (relationships are notably invalid for this.)
+ *
+ * @param stixType A STIX type
+ * @return true if the type is usable as a node, false if not
+ */
+function isStixTypeValidForNode(stixType)
+{
+    return stixType !== "relationship";
+}
+
+
+/**
+ * Sometimes we want to restrict attention to STIX types which are usable as
+ * nodes in our graph.  (relationships are notably invalid for this.)
+ * This function is useful for object references, which are STIX IDs.
+ *
+ * @param stixId A STIX ID
+ * @return true if the type embedded within the ID is usable as a node, false
+ *      if not
+ */
+function isStixIdValidForNode(stixId)
+{
+    // length of UUIDs is 36 chars, plus 2 for the "--"
+    let typeLength = stixId.length - 38;
+    let stixType = stixId.substring(0, typeLength);
+
+    return isStixTypeValidForNode(stixType);
+}
+
+
+/**
  * Given a name, modify it to make it unique: add a "(n)" suffix depending
  * on the content of nameCounts.  nameCounts contains the number of times the
  * name was previously seen.  nameCounts is updated as necessary.
@@ -717,10 +749,11 @@ class STIX2Graph
 
         // collect our types
         for (let object of this.#stixIdToObject.values())
-            stixTypes.add(object.get("type"));
-
-        // relationships don't correspond to node types...
-        stixTypes.delete("relationship");
+        {
+            let stixType = object.get("type");
+            if (isStixTypeValidForNode(stixType))
+                stixTypes.add(stixType);
+        }
 
         let groups = {};
         for (let type of stixTypes)
@@ -818,7 +851,8 @@ class STIX2Graph
                 if (edge)
                     edges.push(edge);
             }
-            else
+            // check STIX type for suitability just in case
+            else if (isStixTypeValidForNode(object.get("type")))
             {
                 let name = nameForStixObject(
                     object, stixIdToName, nameCounts, config
@@ -859,7 +893,14 @@ class STIX2Graph
             this.#stixIdToObject.has(sourceRef)
             && this.#stixIdToObject.has(targetRef)
         )
-            edge = makeEdgeObject(sourceRef, targetRef, relType);
+        {
+            // check STIX types just in case
+            if (
+                isStixIdValidForNode(sourceRef)
+                && isStixIdValidForNode(targetRef)
+            )
+                edge = makeEdgeObject(sourceRef, targetRef, relType);
+        }
         else
             console.warn(
                 "Skipped relationship %s %s %s: missing endpoint object(s)",
@@ -898,7 +939,7 @@ class STIX2Graph
                 else
                     refs = value;
 
-                for (let ref of refs)
+                for (let ref of refs.filter(isStixIdValidForNode))
                 {
                     if (this.#stixIdToObject.has(ref))
                     {
