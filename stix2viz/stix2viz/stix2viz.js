@@ -632,8 +632,7 @@ class STIX2Graph
             physics: {
                 solver: "barnesHut",
                 barnesHut: {
-                    springLength: 200,
-                    avoidOverlap: 1
+                    springLength: 200
                 },
                 // Set to false if you want to watch the graph stabilize when
                 // it first loads.
