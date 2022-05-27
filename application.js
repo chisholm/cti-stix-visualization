@@ -187,82 +187,8 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         // The STIX type the user clicked on
         let toggledStixType = td.textContent.trim().toLowerCase();
 
-        let nodes = graph.nodeDataSet.get({
-            filter: item => item.group === toggledStixType,
-            fields: ["id", "hidden"]
-        });
+        graph.toggleStixType(toggledStixType);
 
-        // Whether we are hiding or showing nodes of the selected type.
-        // If first node is currently hidden, we must be showing, and vice
-        // versa.
-        let hiding = !nodes[0].hidden;
-
-        let toggledNodes = [];
-        let toggledEdges = [];
-
-        // An edge could connect two nodes of the same type.  Ensure we don't
-        // toggle an edge more than once!
-        let toggledEdgeIds = new Set();
-
-        for (let node of nodes)
-        {
-            // Toggling the node is simple
-            toggledNodes.push({
-                id: node.id, hidden: hiding, physics: !hiding
-            });
-
-            // Toggling the edges is more complex...
-            let edgesForNode = graph.edgeDataSet.get({
-                // find (a) edges connecting to 'node'; (b) edges with the
-                // right visibility; (c) edges we have not already seen.
-                filter: item => (item.from === node.id || item.to === node.id)
-                    && !item.hidden === hiding && !toggledEdgeIds.has(item.id),
-                fields: ["id", "from", "to"]
-            });
-
-            if (hiding)
-            {
-                // simple case: unconditionally hide everything
-                for (let edge of edgesForNode)
-                {
-                    toggledEdges.push({
-                        id: edge.id, hidden: true, physics: false
-                    });
-                    toggledEdgeIds.add(edge.id);
-                }
-            }
-            else
-            {
-                // showing is a more complex case: gotta check the other ends
-                // of the edges.  Only show if the other end is also visible
-                // or of the selected type (meaning it will become visible).
-                for (let edge of edgesForNode)
-                {
-                    let otherEndId;
-                    if (edge.from === node.id)
-                        otherEndId = edge.to;
-                    else
-                        otherEndId = edge.from;
-
-                    let otherEndNode = graph.nodeDataSet.get(
-                        otherEndId,
-                        {fields: ["group", "hidden"]}
-                    );
-
-                    if (!otherEndNode.hidden
-                        || otherEndNode.group === toggledStixType)
-                    {
-                        toggledEdges.push({
-                            id: edge.id, hidden: false, physics: true
-                        });
-                        toggledEdgeIds.add(edge.id);
-                    }
-                }
-            }
-        }
-
-        graph.nodeDataSet.updateOnly(toggledNodes);
-        graph.edgeDataSet.updateOnly(toggledEdges);
         // style change to remind users what they've hidden.
         td.classList.toggle("typeHidden");
     }

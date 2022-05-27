@@ -966,6 +966,94 @@ class STIX2Graph
 
         return edges;
     }
+
+    /**
+     * Toggle the display of graph nodes of a particular STIX type.
+     *
+     * @param stixType the STIX type whose nodes should be toggled
+     */
+    toggleStixType(stixType)
+    {
+        let nodes = this.nodeDataSet.get({
+            filter: item => item.group === stixType,
+            fields: ["id", "hidden"]
+        });
+
+        if (nodes.length === 0)
+            return;
+
+        // Whether we are hiding or showing nodes of the selected type.
+        // If first node is currently hidden, we must be showing, and vice
+        // versa.
+        let hiding = !nodes[0].hidden;
+
+        let toggledNodes = [];
+        let toggledEdges = [];
+
+        // An edge could connect two nodes of the same type.  Ensure we don't
+        // toggle an edge more than once!
+        let toggledEdgeIds = new Set();
+
+        for (let node of nodes)
+        {
+            // Toggling the node is simple
+            toggledNodes.push({
+                id: node.id, hidden: hiding, physics: !hiding
+            });
+
+            // Toggling the edges is more complex...
+            let edgesForNode = this.edgeDataSet.get({
+                // find (a) edges connecting to 'node'; (b) edges with the
+                // right visibility; (c) edges we have not already seen.
+                filter: item => (item.from === node.id || item.to === node.id)
+                    && !item.hidden === hiding && !toggledEdgeIds.has(item.id),
+                fields: ["id", "from", "to"]
+            });
+
+            if (hiding)
+            {
+                // simple case: unconditionally hide everything
+                for (let edge of edgesForNode)
+                {
+                    toggledEdges.push({
+                        id: edge.id, hidden: true, physics: false
+                    });
+                    toggledEdgeIds.add(edge.id);
+                }
+            }
+            else
+            {
+                // showing is a more complex case: gotta check the other ends
+                // of the edges.  Only show if the other end is also visible
+                // or of the selected type (meaning it will become visible).
+                for (let edge of edgesForNode)
+                {
+                    let otherEndId;
+                    if (edge.from === node.id)
+                        otherEndId = edge.to;
+                    else
+                        otherEndId = edge.from;
+
+                    let otherEndNode = this.nodeDataSet.get(
+                        otherEndId,
+                        {fields: ["group", "hidden"]}
+                    );
+
+                    if (!otherEndNode.hidden
+                        || otherEndNode.group === stixType)
+                    {
+                        toggledEdges.push({
+                            id: edge.id, hidden: false, physics: true
+                        });
+                        toggledEdgeIds.add(edge.id);
+                    }
+                }
+            }
+        }
+
+        this.nodeDataSet.updateOnly(toggledNodes);
+        this.edgeDataSet.updateOnly(toggledEdges);
+    }
 }
 
 
