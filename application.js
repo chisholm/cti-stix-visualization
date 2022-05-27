@@ -98,13 +98,6 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
                 "click",
                 e => nodeClickHandler(e, graph)
             );
-
-            let legend = document.getElementById("legend");
-            legend.addEventListener(
-                "click",
-                 e => legendClickHandler(e, graph),
-                 {capture: true}
-            );
         }
         catch (err)
         {
@@ -174,8 +167,11 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     /**
      * Toggle the display of graph nodes of a particular STIX type.
      */
-    function legendClickHandler(event, graph)
+    function legendClickHandler(event)
     {
+        if (!graph)
+            return;
+
         let td;
         let clickedTagName = event.target.tagName.toLowerCase();
 
@@ -548,5 +544,7 @@ is not serving JSON, or is not running a webserver.\n\nA GitHub Gist can be crea
     uploader.addEventListener('dragover', handleDragOver, false);
     uploader.addEventListener('drop', handleFileDrop, false);
     document.getElementById('selected').addEventListener('click', selectedNodeClick, false);
+    document.getElementById("legend").addEventListener("click", legendClickHandler, {capture: true});
+
     fetchJsonFromUrl();
 });
