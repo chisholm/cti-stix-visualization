@@ -444,7 +444,7 @@ is not serving JSON, or is not running a webserver.\n\nA GitHub Gist can be crea
         var res = regex.exec(url);
         if (res != null) {
           // Get the value from the `url` parameter
-          req_url = res[0].substring(5);
+          let req_url = res[0].substring(5);
 
           // Fetch JSON from the url
           fetchJsonAjax(req_url, function(content) {
@@ -464,8 +464,8 @@ is not serving JSON, or is not running a webserver.\n\nA GitHub Gist can be crea
         selected.className += " clicked";
         selected.style.position = 'absolute';
         selected.style.left = '25px';
-        selected.style.width = window.innerWidth - 110;
-        selected.style.top = document.getElementById('canvas').offsetHeight + 25;
+        selected.style.width = (window.innerWidth - 110) + "px";
+        selected.style.top = (document.getElementById('canvas').offsetHeight + 25) + "px";
         selected.scrollIntoView(true);
       } else {
         selected.className = "sidebar"
