@@ -360,15 +360,21 @@ function stixTypeToIconURL(stixType, iconPath, iconFileName)
  * @param sourceRef STIX ID of the source object
  * @param targetRef STIX ID of the dest object
  * @param label A label to be associated with the edge
+ * @param stixId If this edge represents a relationship SRO, the STIX ID of
+ *      the SRO.  If it represents another type of relationship (e.g. an
+ *      embedded relationship), this can be null.
  * @return An edge object
  */
-function makeEdgeObject(sourceRef, targetRef, label)
+function makeEdgeObject(sourceRef, targetRef, label, stixId=null)
 {
     let edge = {
         from: sourceRef,
         to: targetRef,
         label: label
     };
+
+    if (stixId)
+        edge.id = stixId;
 
     return edge;
 }
@@ -898,7 +904,9 @@ class STIX2Graph
                 isStixIdValidForNode(sourceRef)
                 && isStixIdValidForNode(targetRef)
             )
-                edge = makeEdgeObject(sourceRef, targetRef, relType);
+                edge = makeEdgeObject(
+                    sourceRef, targetRef, relType, stixRel.get("id")
+                );
         }
         else
             console.warn(

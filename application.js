@@ -55,13 +55,26 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
     function nodeClickHandler(event, graph)
     {
-        // Ignore events not associated with a node (e.g. clicking the canvas)
         if (event.nodes.length > 0)
         {
+            // A click on a node
             let stixObject = graph.getObject(event.nodes[0]);
             if (stixObject)
                 populateSelected(stixObject);
         }
+        else if (event.edges.length > 0)
+        {
+            // A click on an edge
+            let stixRel = graph.getObject(event.edges[0]);
+            if (stixRel)
+                populateSelected(stixRel);
+            else
+                // Just make something up to show for embedded relationships
+                populateSelected(
+                    new Map([["", "(Embedded relationship)"]])
+                );
+        }
+        // else, just a click on the canvas
     }
 
 
