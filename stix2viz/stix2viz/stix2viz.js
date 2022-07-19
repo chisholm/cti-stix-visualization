@@ -638,7 +638,11 @@ class STIX2Graph
             physics: {
                 solver: "barnesHut",
                 barnesHut: {
-                    springLength: 200
+                    theta: 0.9,
+                    gravitationalConstant: -3000,
+                    centralGravity: 0,
+                    springConstant: 0.01,
+                    springLength: 400
                 },
                 // Set to false if you want to watch the graph stabilize when
                 // it first loads.
