@@ -312,8 +312,8 @@ function nameForStixObject(stixObject, stixIdToName, nameCounts, config=null)
             baseName = stixType;
 
         // Copied from old visualizer: ensure the name isn't too long.
-        if (baseName.length > 100)
-          baseName = baseName.substr(0,100) + '...';
+        if (baseName.length > 40)
+          baseName = baseName.substr(0,40) + '...';
 
         name = uniquefyName(baseName, nameCounts);
         stixIdToName.set(stixId, name);
