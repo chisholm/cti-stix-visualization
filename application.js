@@ -22,7 +22,6 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
     // Init some stuff
     let graph = null;
-    let selectedContainer = document.getElementById('selection');
     let uploader = document.getElementById('uploader');
     let canvasContainer = document.getElementById('canvas-container');
     let canvas = document.getElementById('canvas');
@@ -271,50 +270,258 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     }
 
     /**
-     * Prettify the given property key and value for display in the object
-     * info box.
+     * Create a rendering of an array as part of rendering an overall STIX
+     * object.
+     *
+     * @param arrayContent The array to render
+     * @param isRefs Whether the array is the value of a _refs property, i.e.
+     *      an array of STIX IDs.  Used to produce a distinctive rendering for
+     *      references.
+     * @return The rendering as an array of DOM elements
      */
-    function prettyKeyValue(key, value)
+    function stixArrayContentToDOMNodes(arrayContent, isRefs=false)
     {
-        let prettyKey=key, prettyValue=value;
+        let nodes = [];
 
-        // I am trying to somewhat mimic what the old visualizer did here...
-        if (Array.isArray(value))
+        // use an <ol>.  This is a list, after all.  (Or would <ul> make more
+        // sense?)
+        let ol = document.createElement("ol");
+        ol.className = "selected-object-list";
+
+        for (let elt of arrayContent)
         {
-            if (key === "kill_chain_phases")
+            let contentNodes;
+            if (isRefs)
+                contentNodes = stixStringContentToDOMNodes(elt, /*isRef=*/true);
+            else
+                contentNodes = stixContentToDOMNodes(elt);
+
+            let li = document.createElement("li");
+            li.append(...contentNodes);
+            ol.append(li);
+        }
+
+        nodes.push(document.createTextNode("["));
+        nodes.push(ol);
+        nodes.push(document.createTextNode("]"));
+
+        return nodes;
+    }
+
+    /**
+     * Create a rendering of an object/dictionary as part of rendering an
+     * overall STIX object.
+     *
+     * @param objectContent The object/dictionary to render, as a Map instance
+     * @param topLevel Whether objectContent is itself a whole STIX object,
+     *      i.e. the top level of a content tree.  This is used to adjust the
+     *      rendering, e.g. omit the surrounding braces at the top level.
+     * @return The rendering as an array of DOM elements
+     */
+    function stixObjectContentToDOMNodes(objectContent, topLevel=false)
+    {
+        let nodes = [];
+
+        if (!topLevel)
+            nodes.push(document.createTextNode("{"));
+
+        for (let [propName, propValue] of objectContent)
+        {
+            let propNameSpan = document.createElement("span");
+            propNameSpan.className = "selected-object-prop-name";
+            propNameSpan.append(propName + ":");
+
+            let contentNodes;
+            if (propName.endsWith("_ref"))
+                 contentNodes = stixStringContentToDOMNodes(
+                    propValue, /*isRef=*/true
+                 );
+            else if (propName.endsWith("_refs"))
+                contentNodes = stixArrayContentToDOMNodes(
+                    propValue, /*isRefs=*/true
+                );
+            else
+                contentNodes = stixContentToDOMNodes(propValue);
+
+            let propDiv = document.createElement("div");
+            propDiv.append(propNameSpan);
+            propDiv.append(...contentNodes);
+
+            if (!topLevel)
+                propDiv.className = "selected-object-object-content";
+
+            nodes.push(propDiv);
+        }
+
+        if (!topLevel)
+            nodes.push(document.createTextNode("}"));
+
+        return nodes;
+    }
+
+    /**
+     * Create a rendering of a string value as part of rendering an overall
+     * STIX object.
+     *
+     * @param stringContent The string to render
+     * @param isRef Whether the string is the value of a _ref property.  Used
+     *      to produce a distinctive rendering for references.
+     * @return The rendering as an array of DOM elements
+     */
+    function stixStringContentToDOMNodes(stringContent, isRef=false)
+    {
+        let nodes = [];
+
+        let spanWrapper = document.createElement("span");
+        spanWrapper.append(stringContent);
+
+        if (isRef)
+        {
+            let referentObj = graph.getObject(stringContent);
+            if (referentObj)
             {
-                // Just use phase names of kill chain phases
-                let phaseNames = value.map(elt => elt.phase_name);
-                prettyValue = phaseNames.join(", ");
+                spanWrapper.className = "selected-object-text-value-ref";
+                spanWrapper.addEventListener(
+                    "click", e => {
+                        e.stopPropagation();
+                        graph.selectNode(referentObj.get("id"));
+                        populateSelected(referentObj);
+                    }
+                );
             }
-            else if (value.length > 0 && (
-                    typeof value[0] === "string"
-                    || value[0] instanceof String
-                )
-            )
-                // I.e. if value is an array of strings
-                prettyValue = value.join(", ");
+            else
+                spanWrapper.className = "selected-object-text-value-ref-dangling";
+        }
+        else
+            spanWrapper.className = "selected-object-text-value";
+
+        nodes.push(spanWrapper);
+
+        return nodes;
+    }
+
+    /**
+     * Create a rendering of a value for which no other special rendering
+     * applies, as part of rendering an overall STIX object.
+     *
+     * @param otherContent The content to render
+     * @return The rendering as an array of DOM elements
+     */
+    function stixOtherContentToDOMNodes(otherContent)
+    {
+        let nodes = [];
+
+        // Previous code didn't distinguish number, boolean, null primitive
+        // types.  (Null is not actually legal STIX, but is legal JSON and
+        // might make sense to handle just in case.)
+        let asText;
+        if (otherContent === null)
+            asText = "null";
+        else if (otherContent === undefined)
+            asText = "undefined";  // also just in case??
+        else
+            asText = otherContent.toString();
+
+        let spanWrapper = document.createElement("span");
+        spanWrapper.append(asText);
+        spanWrapper.className = "selected-object-nontext-value"
+        nodes.push(spanWrapper);
+
+        return nodes;
+    }
+
+    /**
+     * Create a rendering of a value, as part of rendering an overall STIX
+     * object.  This function dispatches to one of the more specialized
+     * rendering functions based on the type of the value.
+     *
+     * @param stixContent The content to render
+     * @return The rendering as an array of DOM elements
+     */
+    function stixContentToDOMNodes(stixContent)
+    {
+        let nodes;
+
+        if (stixContent instanceof Map)
+            nodes = stixObjectContentToDOMNodes(stixContent);
+        else if (Array.isArray(stixContent))
+            nodes = stixArrayContentToDOMNodes(stixContent);
+        else if (
+            typeof stixContent === "string" || stixContent instanceof String
+        )
+            nodes = stixStringContentToDOMNodes(stixContent);
+        else
+            nodes = stixOtherContentToDOMNodes(stixContent);
+
+        return nodes;
+    }
+
+    /**
+     * Populate the Linked Nodes box with the connections of the given STIX
+     * object.
+     */
+    function populateConnections(stixObject)
+    {
+        let edges = graph.edgesOf(stixObject.get("id"));
+        let objId = stixObject.get("id");
+        let eltConnIncoming = document.getElementById("connections-incoming");
+        let eltConnOutgoing = document.getElementById("connections-outgoing");
+
+        eltConnIncoming.replaceChildren();
+        eltConnOutgoing.replaceChildren();
+
+        let listIn = document.createElement("ol");
+        let listOut = document.createElement("ol");
+
+        eltConnIncoming.append(listIn);
+        eltConnOutgoing.append(listOut);
+
+        for (let edge of edges)
+        {
+            let targetList;
+            let summaryNode = document.createElement("summary");
+            let otherEndSpan = document.createElement("span");
+            let otherEndObj;
+
+            if (objId === edge.from)
+            {
+                otherEndObj = graph.getObject(edge.to);
+                otherEndSpan.append(otherEndObj.get("type"));
+
+                summaryNode.append(edge.label + " ");
+                summaryNode.append(otherEndSpan);
+
+                targetList = listOut;
+            }
             else
             {
-                // Array of anything else
-                let stringValues = value.map(
-                    v => JSON.stringify(v, mapReplacer)
-                );
-                prettyValue = stringValues.join(", ");
+                otherEndObj = graph.getObject(edge.from);
+                otherEndSpan.append(otherEndObj.get("type"));
+
+                summaryNode.append(otherEndSpan);
+                summaryNode.append(" " + edge.label);
+
+                targetList = listIn;
             }
+
+            otherEndSpan.className = "selected-object-text-value-ref";
+            otherEndSpan.addEventListener(
+                "click", e => {
+                    graph.selectNode(otherEndObj.get("id"));
+                    populateSelected(otherEndObj);
+                }
+            );
+
+            let li = document.createElement("li");
+            let detailsNode = document.createElement("details");
+
+            targetList.append(li);
+            li.append(detailsNode);
+            detailsNode.append(summaryNode);
+
+            let objRenderNodes = stixObjectContentToDOMNodes(otherEndObj, true);
+            detailsNode.append(...objRenderNodes);
         }
-        else if (!(typeof value === "string" || value instanceof String))
-            // A non-array, non-string value.  Just run through the
-            // JSON stringifier.
-            prettyValue = JSON.stringify(value, mapReplacer);
-
-        // Old code dropped _ref/_refs suffixes, "_", and capitalized
-        prettyKey = key.replace(/_refs?$/, "");
-        prettyKey = prettyKey.replaceAll(/_/g, " ");
-        if (prettyKey.length > 0)
-            prettyKey = prettyKey[0].toUpperCase() + prettyKey.substring(1);
-
-        return [prettyKey, prettyValue];
     }
 
     /* ******************************************************
@@ -323,38 +530,16 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * Takes STIX object as input
      * ******************************************************/
     function populateSelected(stixObject) {
-      // Remove old values from HTML
-      selectedContainer.innerHTML = "";
+        // Remove old values from HTML
+        let selectedContainer = document.getElementById('selection');
+        selectedContainer.replaceChildren();
 
-      var counter = 0;
+        let contentNodes = stixObjectContentToDOMNodes(
+            stixObject, /*topLevel=*/true
+        );
+        selectedContainer.append(...contentNodes);
 
-      for (let [propName, propValue] of stixObject)
-      { // Make new HTML elements and display them
-        // Create new, empty HTML elements to be filled and injected
-        var div = document.createElement('div');
-        var type = document.createElement('div');
-        var val = document.createElement('div');
-
-        // Assign classes for proper styling
-        if ((counter % 2) != 0) {
-          div.classList.add("odd"); // every other row will have a grey background
-        }
-        type.classList.add("type");
-        val.classList.add("value");
-
-        // Add the text to the new inner html elements
-        let [prettyKey, prettyValue] = prettyKeyValue(propName, propValue);
-        type.innerText = prettyKey;
-        val.innerText = prettyValue;
-
-        // Add new divs to "Selected Node"
-        div.appendChild(type);
-        div.appendChild(val);
-        selectedContainer.appendChild(div);
-
-        // increment the class counter
-        counter += 1;
-      }
+        populateConnections(stixObject);
     }
 
     /* ******************************************************

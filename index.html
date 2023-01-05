@@ -9,8 +9,14 @@
   </head>
 
   <body>
-    <h1><span id="header">STIX Visualizer</span> <span id="chosen-files"></span>
-    <a href="https://github.com/oasis-open/cti-stix-visualization/"><img src="GitHub-Mark-64px.png" alt="View source on GitHub"></a></h1>
+    <div id="top-header-bar">
+      <h1>
+        <span id="header">STIX Visualizer</span><span id="chosen-files"></span>
+      </h1>
+      <a href="https://github.com/oasis-open/cti-stix-visualization/">
+        <img src="GitHub-Mark-64px.png" alt="View source on GitHub" width="32" height="32">
+      </a>
+    </div>
 
     <div id="uploader">
       <p>Drop some STIX 2.0 here!</p>
@@ -40,8 +46,14 @@
       </div>
       <div id="selected" class="sidebar">
         <h2>Selected Node</h2>
-        <div id="selection">
-        </div>
+        <div id="selection"></div>
+      </div>
+      <div id="connections" class="sidebar">
+        <h2>Linked Nodes</h2>
+        <h3>Incoming Edges:</h3>
+        <div id="connections-incoming"></div>
+        <h3>Outgoing Edges:</h3>
+        <div id="connections-outgoing"></div>
       </div>
       <div id="legend" class="sidebar">
         <table id="legend-content">

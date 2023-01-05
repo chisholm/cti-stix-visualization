@@ -1066,6 +1066,29 @@ class STIX2Graph
         this.nodeDataSet.updateOnly(toggledNodes);
         this.edgeDataSet.updateOnly(toggledEdges);
     }
+
+    /**
+     * Get edges which connect to the node in the graph identified by the given
+     * STIX ID.  Both incoming and outgoing edges will be returned.
+     *
+     * @param stixId The id of the graph node to search for
+     */
+    edgesOf(stixId)
+    {
+        let edges = this.edgeDataSet.get({
+            filter: item => (item.from === stixId || item.to === stixId)
+        });
+
+        return edges;
+    }
+
+    /**
+     * Set the graph selection to the node corresponding to the given STIX ID.
+     */
+    selectNode(stixId)
+    {
+        this.graph.selectNodes([stixId]);
+    }
 }
 
 

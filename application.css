@@ -1,33 +1,25 @@
-html, body {
-  padding: 0;
+body {
   margin: 0;
   font-family: "Helvetica", sans-serif;
-  font-weight: 300;
 }
 
-h1 {
+#top-header-bar
+{
+    background-color: #fafafa;
+    margin-bottom: 10px;
+    padding: 20px;
+}
+
+#top-header-bar h1
+{
   font-size: 36px;
-  font-weight: 300;
-  background-color: #fafafa;
-  margin: 0;
-  padding: 20px;
+  font-weight: normal;
+  display: inline;
 }
 
-h1 img {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  top: 25px;
-  right: 25px;
-  border: 0;
-}
-
-#uploader, #canvas-container {
-  position: absolute;
-  top: 81px;
-  bottom: 0;
-  left: 0;
-  right: 0;
+#top-header-bar a
+{
+    float: right;
 }
 
 #canvas {
@@ -53,25 +45,24 @@ h1 img {
 }
 
 #canvas-wrapper {
-  margin: 25px;
+  margin: 0 10px 0 10px;
   float: left;
   width: 60%;
 }
 
 .sidebar {
-  width: 30%;
+  width: 34%;
   display: inline-block;
+  vertical-align: top;
+  margin-bottom: 10px;
+  padding: 25px;
+  background-color: #fafafa;
+  overflow: auto;
 }
 
 .sidebar h2 {
+  font-weight: normal;
   text-align: center;
-  margin-top: 0;
-}
-
-#legend {
-  margin-top: 25px;
-  padding: 25px;
-  background-color: #fafafa;
 }
 
 #legend-content {
@@ -93,34 +84,40 @@ h1 img {
     color: gray;
 }
 
-#selected {
-  margin-top: 25px;
-  padding: 25px;
-  background-color: #fafafa;
-  cursor: pointer;
+.selected-object-object-content {
+    margin-left: 2em;  /* affects indentation of object properties */
 }
 
-#selection > div {
-  padding: .5em 0 .5em 2%;
+.selected-object-prop-name {
+    color: purple;
+    margin-right: 0.5em;  /* space out prop name from its value. */
 }
 
-#selection > .odd {
-  background-color: #e5e5e5;
+.selected-object-list {
+    padding-left: 2em; /* affects indentation of list items */
+    margin: 0; /* snug lists up with what's above/below them */
+    list-style: none;  /* drop the list item numbering */
 }
 
-#selection > div > div {
-  display: inline-block;
-  vertical-align: top;
+.selected-object-text-value {
+    color: darkblue;
 }
 
-#selection > div > .type {
-  width: 30%;
-  font-weight: bold;
+.selected-object-text-value-ref {
+    color: lightblue;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
-#selection > div > .value {
-  width: 65%;
-  word-wrap: break-word;
+/* If a reference is to an object which is not in the graph */
+.selected-object-text-value-ref-dangling {
+    color: red;
+    text-decoration: underline;
+    cursor: not-allowed;
+}
+
+.selected-object-nontext-value {
+    color: orange;
 }
 
 #paste-area-stix-json {
@@ -131,52 +128,6 @@ h1 img {
 #paste-area-custom-config {
   height: 25em;
   width: 40em;
-}
-
-h2 {
-  font-weight: 200;
-}
-
-line, .link {
-  stroke-width: 5;
-  stroke: #aaa;
-}
-
-ul {
-  list-style-type: none;
-  text-align: left;
-  padding: 0;
-  margin: 0;
-}
-
-li {
-  padding: 5px 0px;
-  margin: 0;
-}
-
-ul li div {
-  width: 37px;
-  height: 37px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
-ul > li > p {
-  display: inline-block;
-  margin: 5px 10px;
-}
-
-pre {
-  white-space: pre-wrap;
-}
-
-.dimmed {
-  opacity: 0.9;
-}
-
-.pinned {
-  stroke: black;
-  stroke-width: 5;
 }
 
 .linkish:hover {
