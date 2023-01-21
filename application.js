@@ -21,7 +21,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
 
     // Init some stuff
-    let graph = null;
+    let view = null;
     let uploader = document.getElementById('uploader');
     let canvasContainer = document.getElementById('canvas-container');
     let canvas = document.getElementById('canvas');
@@ -52,33 +52,57 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     }
 
 
-    function nodeClickHandler(event, graph)
+    function graphViewClickHandler(event, edgeDataSet, stixIdToObject)
     {
         if (event.nodes.length > 0)
         {
             // A click on a node
-            let stixObject = graph.getObject(event.nodes[0]);
+            let stixObject = stixIdToObject.get(event.nodes[0]);
             if (stixObject)
-                populateSelected(stixObject);
+                populateSelected(stixObject, edgeDataSet, stixIdToObject);
         }
         else if (event.edges.length > 0)
         {
             // A click on an edge
-            let stixRel = graph.getObject(event.edges[0]);
+            let stixRel = stixIdToObject.get(event.edges[0]);
             if (stixRel)
-                populateSelected(stixRel);
+                populateSelected(stixRel, edgeDataSet, stixIdToObject);
             else
                 // Just make something up to show for embedded relationships
                 populateSelected(
-                    new Map([["", "(Embedded relationship)"]])
+                    new Map([["", "(Embedded relationship)"]]),
+                    edgeDataSet, stixIdToObject
                 );
         }
         // else, just a click on the canvas
     }
 
 
+    function listViewClickHandler(event, edgeDataSet, stixIdToObject)
+    {
+        let clickedItem = event.target;
+
+        if (clickedItem.tagName === "LI")
+        {
+            let stixId = clickedItem.id;
+            let stixObject = stixIdToObject.get(stixId);
+
+            view.selectNode(stixId);
+
+            if (stixObject)
+                populateSelected(stixObject, edgeDataSet, stixIdToObject);
+            else
+                // Just make something up to show for embedded relationships
+                populateSelected(
+                    new Map([["", "(Embedded relationship)"]]),
+                    edgeDataSet, stixIdToObject
+                );
+        }
+    }
+
+
     /* ******************************************************
-     * Initializes the graph, then renders it.
+     * Initializes the view, then renders it.
      * ******************************************************/
     function vizStixWrapper(content, customConfig) {
 
@@ -102,14 +126,44 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
         try
         {
-            graph = stix2viz.makeGraph(canvas, content, customConfig);
+            let [nodeDataSet, edgeDataSet, stixIdToObject]
+                = stix2viz.makeGraphData(content, customConfig);
 
-            populateLegend(...graph.legendData);
+            let wantsList = false;
+            if (nodeDataSet.length > 200)
+                wantsList = confirm(
+                    "This graph contains " + nodeDataSet.length.toString()
+                    + " nodes.  Do you wish to display it as a list?"
+                );
 
-            graph.on(
-                "click",
-                e => nodeClickHandler(e, graph)
-            );
+            if (wantsList)
+            {
+                view = stix2viz.makeListView(
+                    canvas, nodeDataSet, edgeDataSet, stixIdToObject,
+                    customConfig
+                );
+
+                view.on(
+                    "click",
+                    e => listViewClickHandler(e, edgeDataSet, stixIdToObject)
+                );
+            }
+            else
+            {
+                view = stix2viz.makeGraphView(
+                    canvas, nodeDataSet, edgeDataSet, stixIdToObject,
+                    customConfig
+                );
+
+                view.on(
+                    "click",
+                    e => graphViewClickHandler(e, edgeDataSet, stixIdToObject)
+                );
+            }
+
+            populateLegend(...view.legendData);
+
+            //graph.on("click", console.log);
         }
         catch (err)
         {
@@ -181,7 +235,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      */
     function legendClickHandler(event)
     {
-        if (!graph)
+        if (!view)
             return;
 
         let td;
@@ -199,7 +253,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         // The STIX type the user clicked on
         let toggledStixType = td.textContent.trim().toLowerCase();
 
-        graph.toggleStixType(toggledStixType);
+        view.toggleStixType(toggledStixType);
 
         // style change to remind users what they've hidden.
         td.classList.toggle("typeHidden");
@@ -279,7 +333,9 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      *      references.
      * @return The rendering as an array of DOM elements
      */
-    function stixArrayContentToDOMNodes(arrayContent, isRefs=false)
+    function stixArrayContentToDOMNodes(
+        arrayContent, edgeDataSet, stixIdToObject, isRefs=false
+    )
     {
         let nodes = [];
 
@@ -292,9 +348,13 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
         {
             let contentNodes;
             if (isRefs)
-                contentNodes = stixStringContentToDOMNodes(elt, /*isRef=*/true);
+                contentNodes = stixStringContentToDOMNodes(
+                    elt, edgeDataSet, stixIdToObject, /*isRef=*/true
+                );
             else
-                contentNodes = stixContentToDOMNodes(elt);
+                contentNodes = stixContentToDOMNodes(
+                    elt, edgeDataSet, stixIdToObject
+                );
 
             let li = document.createElement("li");
             li.append(...contentNodes);
@@ -318,7 +378,9 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      *      rendering, e.g. omit the surrounding braces at the top level.
      * @return The rendering as an array of DOM elements
      */
-    function stixObjectContentToDOMNodes(objectContent, topLevel=false)
+    function stixObjectContentToDOMNodes(
+        objectContent, edgeDataSet, stixIdToObject, topLevel=false
+    )
     {
         let nodes = [];
 
@@ -334,14 +396,16 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             let contentNodes;
             if (propName.endsWith("_ref"))
                  contentNodes = stixStringContentToDOMNodes(
-                    propValue, /*isRef=*/true
+                    propValue, edgeDataSet, stixIdToObject, /*isRef=*/true
                  );
             else if (propName.endsWith("_refs"))
                 contentNodes = stixArrayContentToDOMNodes(
-                    propValue, /*isRefs=*/true
+                    propValue, edgeDataSet, stixIdToObject, /*isRefs=*/true
                 );
             else
-                contentNodes = stixContentToDOMNodes(propValue);
+                contentNodes = stixContentToDOMNodes(
+                    propValue, edgeDataSet, stixIdToObject
+                );
 
             let propDiv = document.createElement("div");
             propDiv.append(propNameSpan);
@@ -368,7 +432,9 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      *      to produce a distinctive rendering for references.
      * @return The rendering as an array of DOM elements
      */
-    function stixStringContentToDOMNodes(stringContent, isRef=false)
+    function stixStringContentToDOMNodes(
+        stringContent, edgeDataSet, stixIdToObject, isRef=false
+    )
     {
         let nodes = [];
 
@@ -377,15 +443,17 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
         if (isRef)
         {
-            let referentObj = graph.getObject(stringContent);
+            let referentObj = stixIdToObject.get(stringContent);
             if (referentObj)
             {
                 spanWrapper.className = "selected-object-text-value-ref";
                 spanWrapper.addEventListener(
                     "click", e => {
                         e.stopPropagation();
-                        graph.selectNode(referentObj.get("id"));
-                        populateSelected(referentObj);
+                        view.selectNode(referentObj.get("id"));
+                        populateSelected(
+                            referentObj, edgeDataSet, stixIdToObject
+                        );
                     }
                 );
             }
@@ -436,20 +504,30 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * rendering functions based on the type of the value.
      *
      * @param stixContent The content to render
+     * @param edgeDataSet The dataset containing graph edge data.  Used to
+     *      describe node connections.
+     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
+     *      Allows references to be looked up to find the referent objects.
      * @return The rendering as an array of DOM elements
      */
-    function stixContentToDOMNodes(stixContent)
+    function stixContentToDOMNodes(stixContent, edgeDataSet, stixIdToObject)
     {
         let nodes;
 
         if (stixContent instanceof Map)
-            nodes = stixObjectContentToDOMNodes(stixContent);
+            nodes = stixObjectContentToDOMNodes(
+                stixContent, edgeDataSet, stixIdToObject
+            );
         else if (Array.isArray(stixContent))
-            nodes = stixArrayContentToDOMNodes(stixContent);
+            nodes = stixArrayContentToDOMNodes(
+                stixContent, edgeDataSet, stixIdToObject
+            );
         else if (
             typeof stixContent === "string" || stixContent instanceof String
         )
-            nodes = stixStringContentToDOMNodes(stixContent);
+            nodes = stixStringContentToDOMNodes(
+                stixContent, edgeDataSet, stixIdToObject
+            );
         else
             nodes = stixOtherContentToDOMNodes(stixContent);
 
@@ -459,11 +537,22 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     /**
      * Populate the Linked Nodes box with the connections of the given STIX
      * object.
+     *
+     * @param stixObject The STIX object to display connection information
+     *      about
+     * @param edgeDataSet The dataset containing graph edge data.  Used to
+     *      look up connection info for the given object
+     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
+     *      Allows references to be looked up to find the referent objects.
      */
-    function populateConnections(stixObject)
+    function populateConnections(stixObject, edgeDataSet, stixIdToObject)
     {
-        let edges = graph.edgesOf(stixObject.get("id"));
         let objId = stixObject.get("id");
+
+        let edges = edgeDataSet.get({
+            filter: item => (item.from === objId || item.to === objId)
+        });
+
         let eltConnIncoming = document.getElementById("connections-incoming");
         let eltConnOutgoing = document.getElementById("connections-outgoing");
 
@@ -485,7 +574,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
             if (objId === edge.from)
             {
-                otherEndObj = graph.getObject(edge.to);
+                otherEndObj = stixIdToObject.get(edge.to);
                 otherEndSpan.append(otherEndObj.get("type"));
 
                 summaryNode.append(edge.label + " ");
@@ -495,7 +584,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             }
             else
             {
-                otherEndObj = graph.getObject(edge.from);
+                otherEndObj = stixIdToObject.get(edge.from);
                 otherEndSpan.append(otherEndObj.get("type"));
 
                 summaryNode.append(otherEndSpan);
@@ -507,8 +596,8 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             otherEndSpan.className = "selected-object-text-value-ref";
             otherEndSpan.addEventListener(
                 "click", e => {
-                    graph.selectNode(otherEndObj.get("id"));
-                    populateSelected(otherEndObj);
+                    view.selectNode(otherEndObj.get("id"));
+                    populateSelected(otherEndObj, edgeDataSet, stixIdToObject);
                 }
             );
 
@@ -519,32 +608,38 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
             li.append(detailsNode);
             detailsNode.append(summaryNode);
 
-            let objRenderNodes = stixObjectContentToDOMNodes(otherEndObj, true);
+            let objRenderNodes = stixObjectContentToDOMNodes(
+                otherEndObj, edgeDataSet, stixIdToObject, /*topLevel=*/true
+            );
             detailsNode.append(...objRenderNodes);
         }
     }
 
-    /* ******************************************************
-     * Adds information to the selected node table.
+    /**
+     * Populate relevant webpage areas according to a particular STIX object.
      *
-     * Takes STIX object as input
-     * ******************************************************/
-    function populateSelected(stixObject) {
+     * @param stixObject The STIX object to display information about
+     * @param edgeDataSet The dataset containing graph edge data.  Used to
+     *      describe node connections.
+     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
+     *      Allows references to be looked up to find the referent objects.
+     */
+    function populateSelected(stixObject, edgeDataSet, stixIdToObject) {
         // Remove old values from HTML
         let selectedContainer = document.getElementById('selection');
         selectedContainer.replaceChildren();
 
         let contentNodes = stixObjectContentToDOMNodes(
-            stixObject, /*topLevel=*/true
+            stixObject, edgeDataSet, stixIdToObject, /*topLevel=*/true
         );
         selectedContainer.append(...contentNodes);
 
-        populateConnections(stixObject);
+        populateConnections(stixObject, edgeDataSet, stixIdToObject);
     }
 
     /* ******************************************************
      * Toggle the view between the data entry container and
-     * the graph container
+     * the view container
      * ******************************************************/
     function toggleView() {
       uploader.classList.toggle("hidden");
@@ -566,10 +661,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
       var header = document.getElementById('header');
       if (header.classList.contains('linkish')) {
         toggleView();
-        if (graph)
+        if (view)
         {
-            graph.destroy();
-            graph = null;
+            view.destroy();
+            view = null;
         }
         document.getElementById('files').value = ""; // reset the files input
         document.getElementById('chosen-files').innerHTML = ""; // reset the subheader text

@@ -393,10 +393,7 @@ function makeNodeObject(name, stixObject)
 {
     let node = {
         id: stixObject.get("id"),
-        label: name,
-        group: stixObject.get("type"),
-        // we don't need to set any icon config here; it is inherited from the
-        // group.
+        label: name
     };
 
     return node;
@@ -422,10 +419,62 @@ function getDefaultIconURL(iconPath=null)
 
 
 /**
+ * Make a data structure which is suitable for an external entity to create a
+ * legend.
+ *
+ * @param stixIdToObject A mapping from STIX IDs to Map instances containing
+ *      all STIX objects
+ * @param config Config data used for finding icons for legend entries; null
+ *      to use default settings (a Map instance)
+ * @return A [iconURLs, defaultIconURL] 2-tuple, where iconURLs is a Map
+ *      instance which maps STIX type to a URL, and defaultIconURL is a
+ *      fallback URL in case the URL in the mapping does not resolve.
+ */
+function makeLegendData(stixIdToObject, config=null)
+{
+    let iconPath = null;
+    if (config)
+        iconPath = config.get("iconDir");
+
+    let defaultIconURL = getDefaultIconURL(iconPath);
+
+    let stixTypes = new Set();
+
+    // collect our types
+    for (let object of stixIdToObject.values())
+    {
+        let stixType = object.get("type");
+        if (isStixTypeValidForNode(stixType))
+            stixTypes.add(stixType);
+    }
+
+    let iconURLs = new Map();
+    for (let type of stixTypes)
+    {
+        // Choose an icon file according to config settings
+        let iconFileName;
+
+        if (config)
+        {
+            let typeConfig = config.get(type);
+            if (typeConfig)
+                iconFileName = typeConfig.get("display_icon");
+        }
+
+        let iconURL = stixTypeToIconURL(type, iconPath, iconFileName);
+
+        iconURLs.set(type, iconURL);
+    }
+
+    return [iconURLs, defaultIconURL];
+}
+
+
+/**
  * Config can be given as JSON or an object.  Normalize whatever we are given
  * to a Map.
  *
- * @param config configuration as given to the visualizer
+ * @param config configuration as given to this module
  * @return A configuration Map
  * @throw InvalidConfigError if the given config value is invalid
  */
@@ -499,106 +548,252 @@ function normalizeContent(stixContent)
 
 
 /**
- * Drag start handler: must ensure the node is not fixed on drag start, or
- * dragging won't work.
- *
- * @param event a visjs-network event object with info about the drag
- * @param nodeDataSet a visjs DataSet instance with the graph node data
+ * Abstract base class for views of STIX-derived graph data.
  */
-function dragStartHandler(event, nodeDataSet)
+class STIXContentView
 {
-    // Ignore events not associated with a node (e.g. panning the canvas)
-    if (event.nodes.length > 0)
-    {
-        let draggedNodeId = event.nodes[0];
-        nodeDataSet.updateOnly({id: draggedNodeId, fixed: false});
-    }
-}
-
-
-/**
- * Drag end handler: fix the node so it stays where the user dropped it.
- *
- * @param event a visjs-network event object with info about the drag
- * @param nodeDataSet a visjs DataSet instance with the graph node data
- */
-function dragEndHandler(event, nodeDataSet)
-{
-    // Ignore events not associated with a node (e.g. panning the canvas)
-    if (event.nodes.length > 0)
-    {
-        let draggedNodeId = event.nodes[0];
-        nodeDataSet.updateOnly({id: draggedNodeId, fixed: true});
-    }
-}
-
-
-/**
- * Double click handler: toggle whether the node is pinned/fixed.  This would
- * usually be used to un-pin a node.
- *
- * @param event a visjs-network event object with info about the double click
- * @param nodeDataSet a visjs DataSet instance with the graph node data
- */
-function doubleClickHandler(event, nodeDataSet)
-{
-    // Ignore events not associated with a node (e.g. double-clicking the
-    // canvas)
-    if (event.nodes.length > 0)
-    {
-        let selectedNodeId = event.nodes[0];
-        let selectedNode = nodeDataSet.get(selectedNodeId);
-        nodeDataSet.updateOnly({id: selectedNodeId, fixed: !selectedNode.fixed});
-    }
-}
-
-
-/**
- * Class which encapsulates a graph from some underlying graph visualization
- * library, and the STIX content being graphed.  The data used by the
- * visualization library includes only those aspects of the STIX content
- * necessary to draw the graph, so retaining the full STIX source content
- * requires some auxiliary data structures.
- */
-class STIX2Graph
-{
-    #stixIdToObject;
     #legendData;
+
+    constructor(stixIdToObject, config=null)
+    {
+        this.#legendData = makeLegendData(stixIdToObject, config);
+    }
+
+    /**
+     * Get a data structure which is suitable for an external entity to create
+     * a legend.
+     *
+     * @return A [iconURLs, defaultIconURL] 2-tuple, where iconURLs is a Map
+     *      instance which maps STIX type to a URL, and defaultIconURL is a
+     *      fallback URL in case the URL in the mapping does not resolve.
+     */
+    get legendData()
+    {
+        return this.#legendData;
+    }
+
+    /**
+     * Add an event listener to the view.  Events/semantics depends on the
+     * view.
+     */
+    on(...args)
+    {
+    }
+
+    /**
+     * Dispose of the view to free up resources.
+     */
+    destroy()
+    {
+    }
+
+    /**
+     * Toggle display of view elements of a particular STIX type.
+     *
+     * @param stixType the STIX type whose nodes should be toggled
+     */
+    toggleStixType(stixType)
+    {
+    }
+
+    /**
+     * Set the selection to the view element corresponding to the given STIX
+     * ID.
+     *
+     * @param stixId the STIX ID of the node to select
+     */
+    selectNode(stixId)
+    {
+    }
+}
+
+
+/**
+ * A view of STIX-derived graph data which is a simple textual list.
+ */
+class ListView extends STIXContentView
+{
+    #containerRoot;
+    #contentRoot;
+    #stixIdToObject;
+    #selectedId;
+
+    /**
+     * Initialize a graph view.
+     *
+     * @param domElement the parent element where the graph is to be located in
+     *      a web page
+     * @param nodeDataSet A visjs DataSet instance with graph node data derived
+     *      from STIX content
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
+     * @param config A config object
+     */
+    constructor(
+        domElement, nodeDataSet, edgeDataSet, stixIdToObject, config=null
+    )
+    {
+        if (config !== null)
+            config = normalizeConfig(config);
+
+        super(stixIdToObject, config);
+
+        this.#containerRoot = domElement;
+        this.#stixIdToObject = stixIdToObject;
+
+        let doc = domElement.ownerDocument;
+        let ol = doc.createElement("ol");
+
+        nodeDataSet.forEach((item, id) => {
+            let stixObject = stixIdToObject.get(id);
+            let itemText = stixObject.get("type") + ": " + item.label;
+
+            let li = doc.createElement("li");
+            li.id = id;
+            li.className = "list-view-item";
+            ol.append(li);
+            li.append(itemText);
+        });
+
+        edgeDataSet.forEach((item, id) => {
+            let fromItem = nodeDataSet.get(item.from);
+            let toItem = nodeDataSet.get(item.to);
+
+            let itemText = fromItem.label
+                + " " + item.label
+                + " " + toItem.label;
+
+            if (!stixIdToObject.has(id))
+                itemText += " (embedded)";
+
+            let li = doc.createElement("li");
+            li.id = id;
+            li.className = "list-view-item";
+            ol.append(li);
+            li.append(itemText);
+        });
+
+        this.#contentRoot = ol;
+        this.#containerRoot.append(ol);
+
+        this.#selectedId = null;
+    }
+
+    /**
+     * Adds a plain HTML event listener to the content root element of this
+     * view.
+     */
+    on(...args)
+    {
+        this.#contentRoot.addEventListener(...args);
+    }
+
+    /**
+     * Remove all the DOM nodes associated with this view.
+     */
+    destroy()
+    {
+        this.#containerRoot.replaceChildren();
+    }
+
+    /**
+     * Toggle visibility of list items corresponding to STIX objects of the
+     * given type.
+     *
+     * @param stixType the STIX type whose items should be toggled
+     */
+    toggleStixType(stixType)
+    {
+        let listItems = this.#contentRoot.getElementsByTagName("li");
+
+        for (let idx=0; idx < listItems.length; ++idx)
+        {
+            let li = listItems[idx];
+            let stixObject = this.#stixIdToObject.get(li.id);
+
+            if (stixObject && stixObject.get("type") === stixType)
+                li.classList.toggle("hidden");
+        }
+    }
+
+    /**
+     * Set the graph selection to the node corresponding to the given STIX ID.
+     *
+     * @param stixId the STIX ID of the node to select
+     */
+    selectNode(stixId)
+    {
+        let doc = this.#contentRoot.ownerDocument;
+
+        // de-select the previous item, if any
+        if (this.#selectedId)
+        {
+            let oldLi = doc.getElementById(this.#selectedId);
+            if (oldLi)
+                oldLi.classList.remove("list-view-selected");
+        }
+
+        let li = doc.getElementById(stixId);
+        if (li)
+        {
+            li.classList.add("list-view-selected");
+            this.#selectedId = stixId;
+            li.scrollIntoView({block: "nearest"});
+        }
+    }
+}
+
+
+/**
+ * A view of STIX-derived graph data which is a visjs graph.
+ */
+class GraphView extends STIXContentView
+{
     #nodeDataSet;
     #edgeDataSet;
     #network;
 
     /**
-     * Initialize a graph instance.  Sets up the visualization and extra
-     * data structures.
+     * Initialize a graph view.
      *
      * @param visjs The visjs-network module
      * @param domElement the parent element where the graph is to be located in
      *      a web page
-     * @param stixContent STIX content as a JSON string, object, or array of
-     *      objects
-     * @param config A config object containing preferences for naming objects;
-     *      null to use defaults
+     * @param nodeDataSet A visjs DataSet instance with graph node data derived
+     *      from STIX content
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
+     * @param config A config object
      */
-    constructor(visjs, domElement, stixContent, config=null)
+     constructor(
+        visjs, domElement, nodeDataSet, edgeDataSet, stixIdToObject,
+        config=null
+    )
     {
         if (config !== null)
             config = normalizeConfig(config);
 
-        let stixObjects = normalizeContent(stixContent);
+        super(stixIdToObject, config);
 
-        this.#stixIdToObject = new Map();
+        this.#edgeDataSet = edgeDataSet;
 
-        for (let object of stixObjects)
-            this.#stixIdToObject.set(object.get("id"), object);
+        // Add some node data specific to this view, which enables the icons.
+        // This constructs a new dataset from the old one, to avoid modifying
+        // the original.
+        this.#nodeDataSet = new visjs.DataSet();
 
-        let groups = this.#makeGroups(config);
-        this.#legendData = this.#makeLegendData(groups);
+        nodeDataSet.forEach((item, id) => {
+            this.#nodeDataSet.add({
+                ...item,
+                group: stixIdToObject.get(id).get("type")
+            });
+        });
 
-        let [nodes, edges] = this.#makeNodesAndEdges(config);
-
-        this.#nodeDataSet = new visjs.DataSet(nodes);
-        this.#edgeDataSet = new visjs.DataSet(edges);
+        let groups = this.#makeGroups();
 
         let graphData = {
             nodes: this.#nodeDataSet,
@@ -654,21 +849,8 @@ class STIX2Graph
     }
 
     /**
-     * Look up a STIX object by ID.
-     *
-     * @param stixId a STIX ID
-     * @return An object (as a Map instance), or null if the ID didn't identify
-     *      a known object
-     */
-    getObject(stixId)
-    {
-        return this.#stixIdToObject.get(stixId) || null;
-    }
-
-    /**
-     * Get the underlying graph object (according to the underlying graph
-     * visualization library).  Might be useful in case one wants to perform
-     * operations specific to the library.
+     * Get the underlying visjs Network object.  Might be useful in case one
+     * wants to perform operations specific to the library.
      */
     get graph()
     {
@@ -694,42 +876,12 @@ class STIX2Graph
     }
 
     /**
-     * Get data useful for external entities to create a legend for the graph.
-     * This is a 2-tuple: (1) a STIX type to icon URL mapping for all STIX
-     * types present in the graph, and (2) a URL used as a fallback when a URL
-     * in the mapping doesn't resolve.  (So not all of the URLs in the mapping
-     * are guaranteed to resolve, but the fallback should.)
-     */
-    get legendData()
-    {
-        return this.#legendData;
-    }
-
-    /**
      * Convenience event handling method which passes through to the underlying
      * graph method.
      */
     on(...args)
     {
         this.graph.on(...args);
-    }
-
-    /**
-     * Convenience event handling method which passes through to the underlying
-     * graph method.
-     */
-    off(...args)
-    {
-        this.graph.off(...args);
-    }
-
-    /**
-     * Convenience event handling method which passes through to the underlying
-     * graph method.
-     */
-    once(...args)
-    {
-        this.graph.once(...args);
     }
 
     /**
@@ -743,43 +895,15 @@ class STIX2Graph
     /**
      * Create a visjs network groups structure.  There will be one group per
      * STIX type present in the data (except "relationship").
-     *
-     * @param config Config data used for finding icons for the graph nodes
      */
-    #makeGroups(config=null)
+    #makeGroups()
     {
-        let iconPath = null;
-        if (config)
-            iconPath = config.get("iconDir");
-
-        let defaultIconURL = getDefaultIconURL(iconPath);
-
-        let stixTypes = new Set();
-
-        // collect our types
-        for (let object of this.#stixIdToObject.values())
-        {
-            let stixType = object.get("type");
-            if (isStixTypeValidForNode(stixType))
-                stixTypes.add(stixType);
-        }
+        let [iconURLs, defaultIconURL] = this.legendData;
 
         let groups = {};
-        for (let type of stixTypes)
+        for (let [stixType, iconURL] of iconURLs)
         {
-            // Choose an icon file according to config settings
-            let iconFileName;
-
-            if (config)
-            {
-                let typeConfig = config.get(type);
-                if (typeConfig)
-                    iconFileName = typeConfig.get("display_icon");
-            }
-
-            let iconURL = stixTypeToIconURL(type, iconPath, iconFileName);
-
-            groups[type] = {
+            groups[stixType] = {
                 shape: "circularImage",
                 image: iconURL,
                 brokenImage: defaultIconURL
@@ -787,196 +911,6 @@ class STIX2Graph
         }
 
         return groups;
-    }
-
-    /**
-     * Make a data structure which is more suitable for an external entity to
-     * create a legend.  This data is essentially what is in the visjs "group"
-     * structure, but that structure also has some visjs-specific junk that
-     * would be irrelevant.  So it doesn't make sense to use it directly.
-     *
-     * We ought to ensure that the data/options used to create the graph and
-     * the legend data we give to users is consistent.  A way to do that is
-     * to use the group data to create the legend data.  So that's what this
-     * method does.
-     *
-     * @param groups the visjs group data
-     * @return Legend data as a 2-tuple: a STIX type to URL mapping, and the
-     *      URL used as a fallback when there wasn't something more specific.
-     *      (Not all URLs in the mapping are guaranteed to resolve.)
-     */
-    #makeLegendData(groups)
-    {
-        let legendData = new Map();
-        let defaultIconURL = null;
-
-        for (let stixType in groups)
-        {
-            legendData.set(stixType, groups[stixType].image);
-            // all "brokenImage" default URLs ought to be the same, so just use
-            // the first one.
-            if (!defaultIconURL)
-                defaultIconURL = groups[stixType].brokenImage;
-        }
-
-        return [legendData, defaultIconURL];
-    }
-
-    /**
-     * Make the node and edge structures visjs-network requires.
-     *
-     * @param config A config object containing preferences for naming objects;
-     *      null to use defaults
-     * @return array of nodes and array of edges.
-     */
-    #makeNodesAndEdges(config=null)
-    {
-        // List of graph nodes, where each list element is whatever visjs needs
-        // to represent the node.  This is a plain javascript object with an
-        // "id" property at least, to identify the node.
-        let nodes = [];
-
-        // List of links/edges for the graph, where each list element is
-        // whatever visjs needs to represent the edge.  This is a plain
-        // javascript object with "from" and "to" properties at least, whose
-        // values are the IDs of the linked nodes.
-        let edges = [];
-
-        // Used to uniquefy names.  E.g. first "foo" gets the name, then others
-        // will be "foo(2)", "foo(3)", etc.  This map keeps track of those
-        // counts.  Maps the "base" name as computed for the STIX object, to a
-        // count.
-        let nameCounts = new Map();
-
-        // Map STIX IDs to the node names we use in the graph.
-        let stixIdToName = new Map();
-
-        for (let object of this.#stixIdToObject.values())
-        {
-            if (object.get("type") === "relationship")
-            {
-                let edge = this.#edgeForRelationship(object);
-
-                if (edge)
-                    edges.push(edge);
-            }
-            // check STIX type for suitability just in case
-            else if (isStixTypeValidForNode(object.get("type")))
-            {
-                let name = nameForStixObject(
-                    object, stixIdToName, nameCounts, config
-                );
-                let node = makeNodeObject(name, object);
-                nodes.push(node);
-
-                let embeddedRelEdges = this.#edgesForEmbeddedRelationships(
-                    object
-                );
-
-                // Seems like there ought to be a better way to extend one array
-                // with the contents of another.
-                edges.push(...embeddedRelEdges);
-            }
-        }
-
-        return [nodes, edges];
-    }
-
-    /**
-     * Create a visjs network edge object from the given STIX relationship
-     * object, if possible.  If source or target_ref refers to an unknown
-     * object, the edge can't be created and null is returned.
-     *
-     * @param stixRel a STIX relationship object
-     * @return An visjs network edge object, or null if one could not be
-     *      created
-     */
-    #edgeForRelationship(stixRel)
-    {
-        let sourceRef = stixRel.get("source_ref");
-        let targetRef = stixRel.get("target_ref");
-        let relType = stixRel.get("relationship_type");
-
-        let edge = null;
-        if (
-            this.#stixIdToObject.has(sourceRef)
-            && this.#stixIdToObject.has(targetRef)
-        )
-        {
-            // check STIX types just in case
-            if (
-                isStixIdValidForNode(sourceRef)
-                && isStixIdValidForNode(targetRef)
-            )
-                edge = makeEdgeObject(
-                    sourceRef, targetRef, relType, stixRel.get("id")
-                );
-        }
-        else
-            console.warn(
-                "Skipped relationship %s %s %s: missing endpoint object(s)",
-                sourceRef, relType, targetRef
-            );
-
-        return edge;
-    }
-
-    /**
-     * Search through the top-level properties of the given STIX object, and
-     * create visjs network edges for embedded relationships.
-     *
-     * @param stixObject a STIX object
-     * @return An array of edge objects
-     */
-    #edgesForEmbeddedRelationships(stixObject)
-    {
-        let edges = [];
-
-        let sourceId = stixObject.get("id");
-
-        for (let [propName, value] of stixObject)
-        {
-            let relInfo = refsMapping.get(propName);
-
-            if (relInfo)
-            {
-                // "forward" edge direction is referrer->referent
-                // "backward" is referent->referrer
-                let [edgeLabel, forward] = relInfo;
-                let refs;
-
-                if (propName.endsWith("_ref"))
-                    refs = [value];
-                else
-                    refs = value;
-
-                for (let ref of refs.filter(isStixIdValidForNode))
-                {
-                    if (this.#stixIdToObject.has(ref))
-                    {
-                        let edgeSrc, edgeDst;
-                        if (forward)
-                            [edgeSrc, edgeDst] = [sourceId, ref];
-                        else
-                            [edgeSrc, edgeDst] = [ref, sourceId];
-
-                        let edge = makeEdgeObject(
-                            edgeSrc, edgeDst, edgeLabel
-                        );
-
-                        edges.push(edge);
-                    }
-                    else
-                        console.warn(
-                            "Skipped embedded relationship %s %s %s: target object"
-                            + " missing",
-                            sourceId, propName, ref
-                        );
-                }
-            }
-        }
-
-        return edges;
     }
 
     /**
@@ -1068,21 +1002,6 @@ class STIX2Graph
     }
 
     /**
-     * Get edges which connect to the node in the graph identified by the given
-     * STIX ID.  Both incoming and outgoing edges will be returned.
-     *
-     * @param stixId The id of the graph node to search for
-     */
-    edgesOf(stixId)
-    {
-        let edges = this.edgeDataSet.get({
-            filter: item => (item.from === stixId || item.to === stixId)
-        });
-
-        return edges;
-    }
-
-    /**
      * Set the graph selection to the node corresponding to the given STIX ID.
      */
     selectNode(stixId)
@@ -1093,30 +1012,277 @@ class STIX2Graph
 
 
 /**
- * The entrypoint for users of this module: create a graph which visualizes
- * the content in the given STIX bundle.  The content will be added to the
+ * Create a network edge object from the given STIX relationship object, if
+ * possible.  If source or target_ref refers to an unknown object, the edge
+ * can't be created and null is returned.
+ *
+ * @param stixRel a STIX relationship object
+ * @return An visjs network edge object, or null if one could not be created
+ */
+function edgeForRelationship(stixRel, stixIdToObject)
+{
+    let sourceRef = stixRel.get("source_ref");
+    let targetRef = stixRel.get("target_ref");
+    let relType = stixRel.get("relationship_type");
+
+    let edge = null;
+    if (stixIdToObject.has(sourceRef) && stixIdToObject.has(targetRef))
+    {
+        // check STIX types just in case
+        if (isStixIdValidForNode(sourceRef) && isStixIdValidForNode(targetRef))
+            edge = makeEdgeObject(
+                sourceRef, targetRef, relType, stixRel.get("id")
+            );
+    }
+    else
+        console.warn(
+            "Skipped relationship %s %s %s: missing endpoint object(s)",
+            sourceRef, relType, targetRef
+        );
+
+    return edge;
+}
+
+
+/**
+ * Search through the top-level properties of the given STIX object, and
+ * create visjs network edges for embedded relationships.
+ *
+ * @param stixObject a STIX object
+ * @return An array of edge objects
+ */
+function edgesForEmbeddedRelationships(stixObject, stixIdToObject)
+{
+    let edges = [];
+
+    let sourceId = stixObject.get("id");
+
+    for (let [propName, value] of stixObject)
+    {
+        let relInfo = refsMapping.get(propName);
+
+        if (relInfo)
+        {
+            // "forward" edge direction is referrer->referent
+            // "backward" is referent->referrer
+            let [edgeLabel, forward] = relInfo;
+            let refs;
+
+            if (propName.endsWith("_ref"))
+                refs = [value];
+            else
+                refs = value;
+
+            for (let ref of refs.filter(isStixIdValidForNode))
+            {
+                if (stixIdToObject.has(ref))
+                {
+                    let edgeSrc, edgeDst;
+                    if (forward)
+                        [edgeSrc, edgeDst] = [sourceId, ref];
+                    else
+                        [edgeSrc, edgeDst] = [ref, sourceId];
+
+                    let edge = makeEdgeObject(edgeSrc, edgeDst, edgeLabel);
+
+                    edges.push(edge);
+                }
+                else
+                    console.warn(
+                        "Skipped embedded relationship %s %s %s: target object"
+                        + " missing",
+                        sourceId, propName, ref
+                    );
+            }
+        }
+    }
+
+    return edges;
+}
+
+
+/**
+ * Make node and edge datasets derived from STIX content, representing a graph.
+ *
+ * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+ *      Maps, containing STIX content.
+ * @param config A config object containing preferences for naming graph
+ *      elements; null to use defaults
+ * @return 2-tuple consisting of an array of nodes and array of edges.
+ */
+function makeNodesAndEdges(stixIdToObject, config=null)
+{
+    // List of graph nodes, where each list element is whatever visjs needs
+    // to represent the node.  This is a plain javascript object with an
+    // "id" property at least, to identify the node.
+    let nodes = [];
+
+    // List of links/edges for the graph, where each list element is whatever
+    // visjs needs to represent the edge.  This is a plain javascript object
+    // with "from" and "to" properties at least, whose values are the IDs of
+    // the linked nodes.
+    let edges = [];
+
+    // Used to uniquefy names.  E.g. first "foo" gets the name, then others
+    // will be "foo(2)", "foo(3)", etc.  This map keeps track of those counts.
+    // Maps the "base" name as computed for the STIX object, to a count.
+    let nameCounts = new Map();
+
+    // Map STIX IDs to the node names we use in the graph.
+    let stixIdToName = new Map();
+
+    for (let object of stixIdToObject.values())
+    {
+        if (object.get("type") === "relationship")
+        {
+            let edge = edgeForRelationship(object, stixIdToObject);
+
+            if (edge)
+                edges.push(edge);
+        }
+        // check STIX type for suitability just in case
+        else if (isStixTypeValidForNode(object.get("type")))
+        {
+            let name = nameForStixObject(
+                object, stixIdToName, nameCounts, config
+            );
+            let node = makeNodeObject(name, object);
+            nodes.push(node);
+
+            let embeddedRelEdges = edgesForEmbeddedRelationships(
+                object, stixIdToObject
+            );
+
+            // Seems like there ought to be a better way to extend one array
+            // with the contents of another.
+            edges.push(...embeddedRelEdges);
+        }
+    }
+
+    return [nodes, edges];
+}
+
+
+/**
+ * Drag start handler: must ensure the node is not fixed on drag start, or
+ * dragging won't work.
+ *
+ * @param event a visjs-network event object with info about the drag
+ * @param nodeDataSet a visjs DataSet instance with the graph node data
+ */
+function dragStartHandler(event, nodeDataSet)
+{
+    // Ignore events not associated with a node (e.g. panning the canvas)
+    if (event.nodes.length > 0)
+    {
+        let draggedNodeId = event.nodes[0];
+        nodeDataSet.updateOnly({id: draggedNodeId, fixed: false});
+    }
+}
+
+
+/**
+ * Drag end handler: fix the node so it stays where the user dropped it.
+ *
+ * @param event a visjs-network event object with info about the drag
+ * @param nodeDataSet a visjs DataSet instance with the graph node data
+ */
+function dragEndHandler(event, nodeDataSet)
+{
+    // Ignore events not associated with a node (e.g. panning the canvas)
+    if (event.nodes.length > 0)
+    {
+        let draggedNodeId = event.nodes[0];
+        nodeDataSet.updateOnly({id: draggedNodeId, fixed: true});
+    }
+}
+
+
+/**
+ * Double click handler: toggle whether the node is pinned/fixed.  This would
+ * usually be used to un-pin a node.
+ *
+ * @param event a visjs-network event object with info about the double click
+ * @param nodeDataSet a visjs DataSet instance with the graph node data
+ */
+function doubleClickHandler(event, nodeDataSet)
+{
+    // Ignore events not associated with a node (e.g. double-clicking the
+    // canvas)
+    if (event.nodes.length > 0)
+    {
+        let selectedNodeId = event.nodes[0];
+        let selectedNode = nodeDataSet.get(selectedNodeId);
+        nodeDataSet.updateOnly({id: selectedNodeId, fixed: !selectedNode.fixed});
+    }
+}
+
+
+/**
+ * Make graph data from the given STIX content.
+ *
+ * @param visjs the visjs module
+ * @param stixContent STIX content as a STIX object, array of objects, or
+ *      bundle of objects, or any of those as JSON
+ * @param config Config settings as a Map or object, or as JSON
+ * @return A 3-tuple include the node DataSet, edge DataSet, and normalized
+ *      STIX content as a Map instance from STIX ID to a Map instance
+ *      containing a STIX object.
+ */
+function makeGraphData(visjs, stixContent, config=null)
+{
+    if (config !== null)
+        config = normalizeConfig(config);
+
+    let stixObjects = normalizeContent(stixContent);
+
+    let stixIdToObject = new Map();
+
+    for (let object of stixObjects)
+        stixIdToObject.set(object.get("id"), object);
+
+    let [nodes, edges] = makeNodesAndEdges(stixIdToObject, config);
+
+    let nodeDataSet = new visjs.DataSet(nodes);
+    let edgeDataSet = new visjs.DataSet(edges);
+
+    return [nodeDataSet, edgeDataSet, stixIdToObject];
+}
+
+
+/**
+ * Create a graph view of the given data.  The content will be added to the
  * webpage DOM under the given element.
  *
  * @param visjs The visjs-network module
  * @param domElement the parent element where the graph is to be located in a
  *      web page
- * @param stixContent STIX content as a JSON string, object, or array of
- *      objects.
- * @param config A config object containing preferences for naming objects;
- *      null to use defaults
- * @return The graph object.  May be used perform certain options on the
- *      graph, e.g. dispose of it.
+ * @param nodeDataSet A visjs DataSet instance with graph node data derived
+ *      from STIX content
+ * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+ *      from STIX content
+ * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+ *      Maps, containing STIX content.  Graph data like node and edge IDs can
+ *      be looked up here, to obtain full details about the STIX objects.
+ * @param config A config object.  Relevant preferences include those for
+ *      customizing iconography.
+ * @return The graph view object.  May be used perform certain actions on the
+ *      view, e.g. dispose of it.
  */
-function makeGraph(visjs, domElement, stixContent, config=null)
+function makeGraphView(
+    visjs, domElement, nodeDataSet, edgeDataSet, stixIdToObject, config=null
+)
 {
-    let graph = new STIX2Graph(visjs, domElement, stixContent, config);
+    let view = new GraphView(
+        visjs, domElement, nodeDataSet, edgeDataSet, stixIdToObject, config
+    );
 
     // Add some handlers to enable some hard-coded behavior.
-    graph.on("dragStart", e => dragStartHandler(e, graph.nodeDataSet));
-    graph.on("dragEnd", e => dragEndHandler(e, graph.nodeDataSet));
-    graph.on("doubleClick", e => doubleClickHandler(e, graph.nodeDataSet));
+    view.on("dragStart", e => dragStartHandler(e, view.nodeDataSet));
+    view.on("dragEnd", e => dragEndHandler(e, view.nodeDataSet));
+    view.on("doubleClick", e => doubleClickHandler(e, view.nodeDataSet));
 
-    return graph;
+    return view;
 }
 
 
@@ -1126,8 +1292,10 @@ function makeGraph(visjs, domElement, stixContent, config=null)
 function makeModule(visjs)
 {
     let module = {
-        makeGraph: (domElement, stixContent, config=null) =>
-            makeGraph(visjs, domElement, stixContent, config)
+        makeGraphData: (stixContent, config=null) =>
+            makeGraphData(visjs, stixContent, config),
+        makeGraphView: (...args) => makeGraphView(visjs, ...args),
+        makeListView: (...args) => new ListView(...args)
     };
 
     return module;
