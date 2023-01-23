@@ -1017,6 +1017,8 @@ class GraphView extends STIXContentView
  * can't be created and null is returned.
  *
  * @param stixRel a STIX relationship object
+ * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+ *      Maps, containing STIX content.
  * @return An visjs network edge object, or null if one could not be created
  */
 function edgeForRelationship(stixRel, stixIdToObject)
@@ -1049,6 +1051,8 @@ function edgeForRelationship(stixRel, stixIdToObject)
  * create visjs network edges for embedded relationships.
  *
  * @param stixObject a STIX object
+ * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+ *      Maps, containing STIX content.
  * @return An array of edge objects
  */
 function edgesForEmbeddedRelationships(stixObject, stixIdToObject)
@@ -1262,8 +1266,8 @@ function makeGraphData(visjs, stixContent, config=null)
  * @param edgeDataSet A visjs DataSet instance with graph edge data derived
  *      from STIX content
  * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
- *      Maps, containing STIX content.  Graph data like node and edge IDs can
- *      be looked up here, to obtain full details about the STIX objects.
+ *      Maps, containing STIX content.  Graph data can be looked up here, to
+ *      obtain full details about the STIX objects.
  * @param config A config object.  Relevant preferences include those for
  *      customizing iconography.
  * @return The graph view object.  May be used perform certain actions on the

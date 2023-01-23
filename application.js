@@ -52,6 +52,14 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     }
 
 
+    /**
+     * Handle clicks on the visjs graph view.
+     *
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
+     */
     function graphViewClickHandler(event, edgeDataSet, stixIdToObject)
     {
         if (event.nodes.length > 0)
@@ -78,6 +86,14 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
     }
 
 
+    /**
+     * Handle clicks on the list view.
+     *
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
+     */
     function listViewClickHandler(event, edgeDataSet, stixIdToObject)
     {
         let clickedItem = event.target;
@@ -328,6 +344,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * object.
      *
      * @param arrayContent The array to render
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      * @param isRefs Whether the array is the value of a _refs property, i.e.
      *      an array of STIX IDs.  Used to produce a distinctive rendering for
      *      references.
@@ -373,6 +393,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * overall STIX object.
      *
      * @param objectContent The object/dictionary to render, as a Map instance
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      * @param topLevel Whether objectContent is itself a whole STIX object,
      *      i.e. the top level of a content tree.  This is used to adjust the
      *      rendering, e.g. omit the surrounding braces at the top level.
@@ -428,6 +452,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * STIX object.
      *
      * @param stringContent The string to render
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      * @param isRef Whether the string is the value of a _ref property.  Used
      *      to produce a distinctive rendering for references.
      * @return The rendering as an array of DOM elements
@@ -492,7 +520,7 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
 
         let spanWrapper = document.createElement("span");
         spanWrapper.append(asText);
-        spanWrapper.className = "selected-object-nontext-value"
+        spanWrapper.className = "selected-object-nontext-value";
         nodes.push(spanWrapper);
 
         return nodes;
@@ -504,10 +532,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * rendering functions based on the type of the value.
      *
      * @param stixContent The content to render
-     * @param edgeDataSet The dataset containing graph edge data.  Used to
-     *      describe node connections.
-     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
-     *      Allows references to be looked up to find the referent objects.
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      * @return The rendering as an array of DOM elements
      */
     function stixContentToDOMNodes(stixContent, edgeDataSet, stixIdToObject)
@@ -540,10 +568,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      *
      * @param stixObject The STIX object to display connection information
      *      about
-     * @param edgeDataSet The dataset containing graph edge data.  Used to
-     *      look up connection info for the given object
-     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
-     *      Allows references to be looked up to find the referent objects.
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      */
     function populateConnections(stixObject, edgeDataSet, stixIdToObject)
     {
@@ -619,10 +647,10 @@ require(["domReady!", "stix2viz/stix2viz/stix2viz"], function (document, stix2vi
      * Populate relevant webpage areas according to a particular STIX object.
      *
      * @param stixObject The STIX object to display information about
-     * @param edgeDataSet The dataset containing graph edge data.  Used to
-     *      describe node connections.
-     * @param stixIdToObject A Map instance mapping STIX ID to a STIX object.
-     *      Allows references to be looked up to find the referent objects.
+     * @param edgeDataSet A visjs DataSet instance with graph edge data derived
+     *      from STIX content
+     * @param stixIdToObject A Map instance mapping STIX IDs to STIX objects as
+     *      Maps, containing STIX content.
      */
     function populateSelected(stixObject, edgeDataSet, stixIdToObject) {
         // Remove old values from HTML
