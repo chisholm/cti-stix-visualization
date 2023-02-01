@@ -839,6 +839,7 @@ class GraphView extends STIXContentView
                     springConstant: 0.01,
                     springLength: 400
                 },
+                minVelocity: 1,
                 // Set to false if you want to watch the graph stabilize when
                 // it first loads.
                 stabilization: true
@@ -1001,7 +1002,6 @@ class GraphView extends STIXContentView
 
         this.nodeDataSet.updateOnly(toggledNodes);
         this.edgeDataSet.updateOnly(toggledEdges);
-        this.#network.fit();
     }
 
     /**
@@ -1026,6 +1026,14 @@ class GraphView extends STIXContentView
     disablePhysics()
     {
         this.#network.setOptions( { physics: false } );
+    }
+
+    /**
+     * Autozoom to fit all nodes on the canvas
+     */
+    autozoom()
+    {
+        this.#network.fit();
     }
 }
 
@@ -1252,6 +1260,7 @@ function doubleClickHandler(event, nodeDataSet)
 function stabilizedHandler(event, view)
 {
     view.disablePhysics();
+    view.autozoom();
 }
 
 
