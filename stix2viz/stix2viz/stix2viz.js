@@ -839,6 +839,7 @@ class GraphView extends STIXContentView
                     springConstant: 0.01,
                     springLength: 400
                 },
+                minVelocity: 1,
                 // Set to false if you want to watch the graph stabilize when
                 // it first loads.
                 stabilization: true
@@ -928,6 +929,8 @@ class GraphView extends STIXContentView
         if (nodes.length === 0)
             return;
 
+        this.enablePhysics();
+
         // Whether we are hiding or showing nodes of the selected type.
         // If first node is currently hidden, we must be showing, and vice
         // versa.
@@ -1007,6 +1010,22 @@ class GraphView extends STIXContentView
     selectNode(stixId)
     {
         this.graph.selectNodes([stixId]);
+    }
+
+    /**
+     * Enable physics in this graph view
+     */
+    enablePhysics()
+    {
+        this.#network.setOptions( { physics: true } );
+    }
+
+    /**
+     * Disable physics in this graph view
+     */
+    disablePhysics()
+    {
+        this.#network.setOptions( { physics: false } );
     }
 }
 
@@ -1223,6 +1242,20 @@ function doubleClickHandler(event, nodeDataSet)
 
 
 /**
+ * Handler for when graph stabilizes: disable physics so that dragging a node
+ * only moves that node and all others stay where they are.
+ *
+ * @param event a visjs-network event object with the number of iterations it
+ * took to stabilize the graph
+ * @param view the visjs Graphview instance
+ */
+function stabilizedHandler(event, view)
+{
+    view.disablePhysics();
+}
+
+
+/**
  * Make graph data from the given STIX content.
  *
  * @param visjs the visjs module
@@ -1285,6 +1318,7 @@ function makeGraphView(
     view.on("dragStart", e => dragStartHandler(e, view.nodeDataSet));
     view.on("dragEnd", e => dragEndHandler(e, view.nodeDataSet));
     view.on("doubleClick", e => doubleClickHandler(e, view.nodeDataSet));
+    view.on("stabilized", e => stabilizedHandler(e, view));
 
     return view;
 }
