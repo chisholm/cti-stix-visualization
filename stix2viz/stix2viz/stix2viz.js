@@ -1187,61 +1187,6 @@ function makeNodesAndEdges(stixIdToObject, config=null)
 
 
 /**
- * Drag start handler: must ensure the node is not fixed on drag start, or
- * dragging won't work.
- *
- * @param event a visjs-network event object with info about the drag
- * @param nodeDataSet a visjs DataSet instance with the graph node data
- */
-function dragStartHandler(event, nodeDataSet)
-{
-    // Ignore events not associated with a node (e.g. panning the canvas)
-    if (event.nodes.length > 0)
-    {
-        let draggedNodeId = event.nodes[0];
-        nodeDataSet.updateOnly({id: draggedNodeId, fixed: false});
-    }
-}
-
-
-/**
- * Drag end handler: fix the node so it stays where the user dropped it.
- *
- * @param event a visjs-network event object with info about the drag
- * @param nodeDataSet a visjs DataSet instance with the graph node data
- */
-function dragEndHandler(event, nodeDataSet)
-{
-    // Ignore events not associated with a node (e.g. panning the canvas)
-    if (event.nodes.length > 0)
-    {
-        let draggedNodeId = event.nodes[0];
-        nodeDataSet.updateOnly({id: draggedNodeId, fixed: true});
-    }
-}
-
-
-/**
- * Double click handler: toggle whether the node is pinned/fixed.  This would
- * usually be used to un-pin a node.
- *
- * @param event a visjs-network event object with info about the double click
- * @param nodeDataSet a visjs DataSet instance with the graph node data
- */
-function doubleClickHandler(event, nodeDataSet)
-{
-    // Ignore events not associated with a node (e.g. double-clicking the
-    // canvas)
-    if (event.nodes.length > 0)
-    {
-        let selectedNodeId = event.nodes[0];
-        let selectedNode = nodeDataSet.get(selectedNodeId);
-        nodeDataSet.updateOnly({id: selectedNodeId, fixed: !selectedNode.fixed});
-    }
-}
-
-
-/**
  * Handler for when graph stabilizes: disable physics so that dragging a node
  * only moves that node and all others stay where they are.
  *
@@ -1315,9 +1260,6 @@ function makeGraphView(
     );
 
     // Add some handlers to enable some hard-coded behavior.
-    view.on("dragStart", e => dragStartHandler(e, view.nodeDataSet));
-    view.on("dragEnd", e => dragEndHandler(e, view.nodeDataSet));
-    view.on("doubleClick", e => doubleClickHandler(e, view.nodeDataSet));
     view.on("stabilized", e => stabilizedHandler(e, view));
 
     return view;
